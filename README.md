@@ -1,7 +1,7 @@
 # SET up repository
 
 ##clone repo
-`git clone `
+`git clone git@gitlab.com:sudovag3/startup-gateway.git`
 
 ##cd
 `cd startup`
