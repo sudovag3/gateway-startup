@@ -7,6 +7,41 @@ from django.shortcuts import render, get_object_or_404
 # Contest
 from gateway.models import Contest
 
+# Distribution
+
+
+# Test form
+from django.shortcuts import render
+from django.http import *
+from .forms import TestForm
+from .bot.start import start_bot
+
+import asyncio
+
+
+def index(request):
+    if request.method == "POST":
+        token = request.POST.get("token")
+        output = "<h1><Бот с этим токеном: {0}</h1>" \
+                 "<h2>Успешно создан!</h2>".format(token)
+        asyncio.run(start_bot(token))
+
+        return HttpResponse(output)
+    else:
+        userform = TestForm()
+        return render(request, "../templates/index.html", {'form': userform})
+
+
+
+
+
+
+
+
+
+
+
+
 
 # @login_required
 # def contest_detail(request, id):
