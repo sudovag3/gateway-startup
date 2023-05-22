@@ -1,4 +1,4 @@
 venv
-env
+startup/env
 db.sqlite3
 .idea
