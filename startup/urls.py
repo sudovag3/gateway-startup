@@ -15,10 +15,24 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from gateway import views
+from gateway.views import contest_detail, CreateContestAPIView, UpdateContestAPIView, ListContestAPIView, \
+    ListSubscribeAPIView, ListMySubscribeAPIView, buy_rate
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('distribution/telegram/', views.index),
+
+    #Contest
+    path('contest/detail/', contest_detail),
+    path('contest/create/', CreateContestAPIView.as_view()),
+    path('contest/update/<int:pk>/', UpdateContestAPIView.as_view()),
+    path('contest/list/', ListContestAPIView.as_view()),
+
+    #Rate
+    path('rate/all/', ListSubscribeAPIView.as_view()),
+    path('rate/my/', ListMySubscribeAPIView.as_view()),
+    path('rate/buy<int:sub_id>', buy_rate),
+
+    # path('distribution/telegram/', views.index),
 ]

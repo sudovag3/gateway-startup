@@ -1,19 +1,57 @@
+from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, PermissionsMixin
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
 
-class User(AbstractUser):
+# class CustomUserManager(BaseUserManager):
+#     def create_user(self, email, first_name, last_name, password=None,
+#                     ):
+#         '''
+#         Create a CustomUser with email, name, password and other extra fields
+#         '''
+#         now = timezone.now()
+#         if not email:
+#             raise ValueError('The email is required to create this user')
+#         email = CustomUserManager.normalize_email(email)
+#         cuser = self.model(email=email, first_name=first_name,
+#                            last_name=last_name, is_staff=False,
+#                            is_active=True, is_superuser=False,
+#                            date_joined=now, last_login=now, )
+#         cuser.set_password(password)
+#         cuser.save(using=self._db)
+#         return cuser
+#
+#     def create_superuser(self, email, first_name, last_name, password=None,
+#                          ):
+#         u = self.create_user(email, first_name, last_name, password,
+#                              )
+#         u.is_staff = True
+#         u.is_active = True
+#         u.is_superuser = True
+#         u.save(using=self._db)
+#
+#         return u
+
+
+class User(AbstractUser, PermissionsMixin):
     address = models.CharField(
-        max_length=50
+        max_length=50,
+        blank=True,
+        null=True
     )
 
     number = models.CharField(
-        max_length=15
+        max_length=15,
+        blank=True,
+        null=True
     )
 
     birth_date = models.DateTimeField(
+        blank=True,
+        null=True
     )
 
     class Status(models.TextChoices):
@@ -23,23 +61,31 @@ class User(AbstractUser):
 
     status = models.CharField(
         max_length=3,
-        choices=Status.choices
+        choices=Status.choices,
+        blank=True,
+        null=True
     )
 
     subscribes = models.ForeignKey(
         'Subscribe',
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True
     )
 
     contests = models.ForeignKey(
         'Contest',
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True
     )
 
     tags = models.ForeignKey(
         'Tag',
         on_delete=models.CASCADE,
-        related_name='user_to_tag'
+        related_name='user_to_tag',
+        blank=True,
+        null=True
     )
 
 
@@ -63,15 +109,23 @@ class Contest(models.Model):
     )
 
     reg_start = models.DateTimeField(
+        blank=True,
+        null=True
     )
 
     reg_end = models.DateTimeField(
+        blank=True,
+        null=True
     )
 
     date_start = models.DateTimeField(
+        blank=True,
+        null=True
     )
 
     date_end = models.DateTimeField(
+        blank=True,
+        null=True
     )
 
     logo = models.CharField(
@@ -79,12 +133,18 @@ class Contest(models.Model):
     )
 
     participant_cap = models.IntegerField(
+        blank=True,
+        null=True
     )
 
     command_min = models.IntegerField(
+        blank=True,
+        null=True
     )
 
     command_max = models.IntegerField(
+        blank=True,
+        null=True
     )
 
     region = models.CharField(
@@ -92,9 +152,11 @@ class Contest(models.Model):
     )
 
     created_at = models.DateTimeField(
+        auto_now_add=True
     )
 
     updated_at = models.DateTimeField(
+        auto_now=True
     )
 
     number = models.CharField(
@@ -102,53 +164,71 @@ class Contest(models.Model):
     )
 
     owner = models.ForeignKey(
-        'Contest',
-        on_delete=models.CASCADE
+        settings.AUTH_USER_MODEL,
+        verbose_name='Owner',
+        on_delete=models.CASCADE,
+        related_name='owner_to_user'
     )
 
     tasks = models.ForeignKey(
         'Task',
         on_delete=models.CASCADE,
-        related_name='contest_to_task'
+        related_name='contest_to_task',
+        blank=True,
+        null=True
     )
 
     commands = models.ForeignKey(
         'Command',
         on_delete=models.CASCADE,
-        related_name='contest_to_command'
+        related_name='contest_to_command',
+        blank=True,
+        null=True
     )
 
     participants = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name='User',
         on_delete=models.CASCADE,
-        related_name='participants_to_user'
+        related_name='participants_to_user',
+        blank=True,
+        null=True
         )
 
     contest_admins = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name='User',
         on_delete=models.CASCADE,
-        related_name='admins_to_user'
+        related_name='admins_to_user',
+        blank=True,
+        null=True
     )
 
     tags = models.ForeignKey(
         'Tag',
         on_delete=models.CASCADE,
-        related_name='contest_to_tag'
+        related_name='contest_to_tag',
+        blank=True,
+        null=True
     )
 
 
 class Subscribe(models.Model):
     name = models.CharField(
-        max_length=200
+        max_length=200,
+        blank=True,
+        null=True
     )
 
     description = models.CharField(
-        max_length=200
+        max_length=200,
+        blank=True,
+        null=True
     )
 
     cost = models.IntegerField(
+        blank=True,
+        null=True
     )
 
     class Type(models.TextChoices):
@@ -158,68 +238,96 @@ class Subscribe(models.Model):
 
     type = models.CharField(
         max_length=3,
-        choices=Type.choices
+        choices=Type.choices,
+        blank=True,
+        null=True
     )
 
     users = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         verbose_name='User',
+        blank=True,
+        null=True
     )
 
 
 class Award(models.Model):
     task = models.CharField(
-        max_length=200
+        max_length=200,
+        blank=True,
+        null=True
     )
 
     commands = models.CharField(
-        max_length=200
+        max_length=200,
+        blank=True,
+        null=True
     )
 
     name = models.CharField(
-        max_length=200
+        max_length=200,
+        blank=True,
+        null=True
     )
 
     description = models.CharField(
-        max_length=200
+        max_length=200,
+        blank=True,
+        null=True
     )
 
     award = models.CharField(
-        max_length=200
+        max_length=200,
+        blank=True,
+        null=True
     )
 
     created_at = models.DateTimeField(
+        auto_now_add=True
     )
 
     updated_at = models.DateTimeField(
+        auto_now=True
     )
 
 
 class Task(models.Model):
     contest = models.CharField(
-        max_length=200
+        max_length=200,
+        blank=True,
+        null=True
     )
 
     task_name = models.CharField(
-        max_length=200
+        max_length=200,
+        blank=True,
+        null=True
     )
 
     task_description = models.CharField(
-        max_length=200
+        max_length=200,
+        blank=True,
+        null=True
     )
 
     description = models.CharField(
-        max_length=200
+        max_length=200,
+        blank=True,
+        null=True
     )
 
     awards = models.CharField(
-        max_length=200
+        max_length=200,
+        blank=True,
+        null=True
     )
 
     created_at = models.DateTimeField(
+        auto_now_add=True
     )
 
     updated_at = models.DateTimeField(
+        auto_now=True
     )
 
 
@@ -232,9 +340,11 @@ class Command(models.Model):
     )
 
     created_at = models.DateTimeField(
+        auto_now_add=True
     )
 
     updated_at = models.DateTimeField(
+        auto_now=True
     )
 
     contest = models.ForeignKey(
@@ -295,9 +405,11 @@ class Solution(models.Model):
     )
 
     created_at = models.DateTimeField(
+        auto_now_add=True
     )
 
     updated_at = models.DateTimeField(
+        auto_now=True
     )
 
     command = models.ForeignKey(
@@ -325,9 +437,11 @@ class Invite(models.Model):
     )
 
     created_at = models.DateTimeField(
+        auto_now_add=True
     )
 
     updated_at = models.DateTimeField(
+        auto_now=True
     )
 
     command = models.ForeignKey(
@@ -366,9 +480,11 @@ class Review(models.Model):
     )
 
     created_at = models.DateTimeField(
+        auto_now_add=True
     )
 
     updated_at = models.DateTimeField(
+        auto_now=True
     )
 
     command = models.ForeignKey(
