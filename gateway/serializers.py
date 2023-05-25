@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from gateway.models import Contest, Subscribe
+from gateway.models import Contest, Subscribe, Command, Solution
 
 
 class ContestAdminSerializer(serializers.ModelSerializer):
@@ -47,4 +47,32 @@ class ContestParticipantSerializer(serializers.ModelSerializer):
                   ]
 
 
+class CommandCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Command
+        fields = '__all__'
 
+
+class CommandUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Command
+        fields = '__all__'
+
+
+class CommandListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Command
+        fields = ['id',
+                  'command_name',
+                  'open_to_invite',
+                  'contest',
+                  'admin',
+                  'participants',
+                  'tags'
+                  ]
+
+
+class SolutionListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Solution
+        fields = '__all__'

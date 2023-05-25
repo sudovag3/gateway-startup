@@ -66,27 +66,13 @@ class User(AbstractUser, PermissionsMixin):
         null=True
     )
 
-    subscribes = models.ForeignKey(
+    subscribe = models.ForeignKey(
         'Subscribe',
         on_delete=models.CASCADE,
         blank=True,
         null=True
     )
 
-    contests = models.ForeignKey(
-        'Contest',
-        on_delete=models.CASCADE,
-        blank=True,
-        null=True
-    )
-
-    tags = models.ForeignKey(
-        'Tag',
-        on_delete=models.CASCADE,
-        related_name='user_to_tag',
-        blank=True,
-        null=True
-    )
 
 
 class Contest(models.Model):
@@ -159,57 +145,29 @@ class Contest(models.Model):
         auto_now=True
     )
 
-    number = models.CharField(
-        max_length=15
-    )
-
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name='Owner',
         on_delete=models.CASCADE,
-        related_name='owner_to_user'
+        related_name='contests_owner'
     )
 
-    tasks = models.ForeignKey(
-        'Task',
-        on_delete=models.CASCADE,
-        related_name='contest_to_task',
-        blank=True,
-        null=True
+    tags = models.ManyToManyField(
+        'Tag',
     )
 
-    commands = models.ForeignKey(
-        'Command',
-        on_delete=models.CASCADE,
-        related_name='contest_to_command',
-        blank=True,
-        null=True
-    )
-
-    participants = models.ForeignKey(
+    participants = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        verbose_name='User',
-        on_delete=models.CASCADE,
-        related_name='participants_to_user',
-        blank=True,
-        null=True
+        verbose_name='participants',
+        related_name='contests_participant',
+        blank=True
         )
 
-    contest_admins = models.ForeignKey(
+    contest_admins = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        verbose_name='User',
-        on_delete=models.CASCADE,
-        related_name='admins_to_user',
-        blank=True,
-        null=True
-    )
-
-    tags = models.ForeignKey(
-        'Tag',
-        on_delete=models.CASCADE,
-        related_name='contest_to_tag',
-        blank=True,
-        null=True
+        verbose_name='contest_admins',
+        related_name='contests_admin',
+        blank=True
     )
 
 
@@ -243,23 +201,22 @@ class Subscribe(models.Model):
         null=True
     )
 
-    users = models.ManyToManyField(
-        settings.AUTH_USER_MODEL,
-        verbose_name='User',
-        blank=True,
-        null=True
-    )
 
 
 class Award(models.Model):
-    task = models.CharField(
-        max_length=200,
+
+    task = models.ForeignKey(
+        'Task',
+        on_delete=models.PROTECT,
+        related_name='task_awards',
         blank=True,
         null=True
     )
 
-    commands = models.CharField(
-        max_length=200,
+    command = models.ForeignKey(
+        'Command',
+        on_delete=models.PROTECT,
+        related_name='command_awards',
         blank=True,
         null=True
     )
@@ -292,8 +249,11 @@ class Award(models.Model):
 
 
 class Task(models.Model):
-    contest = models.CharField(
-        max_length=200,
+
+    contest = models.ForeignKey(
+        'Contest',
+        on_delete=models.PROTECT,
+        related_name='contest_tasks',
         blank=True,
         null=True
     )
@@ -310,16 +270,8 @@ class Task(models.Model):
         null=True
     )
 
-    description = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True
-    )
-
-    awards = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True
+    tags = models.ManyToManyField(
+        'Tag',
     )
 
     created_at = models.DateTimeField(
@@ -349,43 +301,35 @@ class Command(models.Model):
 
     contest = models.ForeignKey(
         'Contest',
-        on_delete=models.CASCADE,
-        related_name='command_to_contest'
+        on_delete=models.PROTECT,
+        related_name='contest_commands',
+        blank=True,
+        null=True
     )
 
-    invites = models.ForeignKey(
-        'Invite',
-        on_delete=models.CASCADE,
-        related_name='command_to_invite'
+    task = models.ForeignKey(
+        'Task',
+        on_delete=models.PROTECT,
+        related_name='task_commands',
+        blank=True,
+        null=True
     )
 
-    participants = models.ForeignKey(
+    admin = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        verbose_name='User',
-        on_delete=models.CASCADE
+        on_delete=models.PROTECT,
+        related_name='admin_commands',
+        blank=True,
+        null=True
     )
 
-    awards = models.ForeignKey(
-        'Award',
-        on_delete=models.CASCADE,
+    participants = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        verbose_name='Participants',
     )
 
-    solutions = models.ForeignKey(
-        'Solution',
-        on_delete=models.CASCADE,
-        related_name='command_to_solution'
-    )
-
-    review = models.ForeignKey(
-        'Review',
-        on_delete=models.CASCADE,
-        related_name='command_to_review'
-    )
-
-    tags = models.ForeignKey(
+    tags = models.ManyToManyField(
         'Tag',
-        on_delete=models.CASCADE,
-        related_name='command_to_tag'
     )
 
 
@@ -396,8 +340,8 @@ class Solution(models.Model):
 
     class Status(models.TextChoices):
         CREATED = 'CRE', _('CREATED')
-        COMPLETED = 'COM', _('COMPLETED')
-        DELETED = 'DEL', _('DELETED')
+        COMPLETED = 'REV', _('REVIEWED')
+        DELETED = 'BAN', _('BANNED')
 
     status = models.CharField(
         max_length=3,
@@ -414,22 +358,22 @@ class Solution(models.Model):
 
     command = models.ForeignKey(
         'Command',
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='solution_to_command'
     )
 
     task = models.ForeignKey(
         'Task',
-        on_delete=models.CASCADE,
-        related_name='command_to_task'
+        on_delete=models.PROTECT,
+        related_name='solution_to_task'
     )
 
 
 class Invite(models.Model):
     class Status(models.TextChoices):
         CREATED = 'CRE', _('CREATED')
-        COMPLETED = 'COM', _('COMPLETED')
-        DELETED = 'DEL', _('DELETED')
+        COMPLETED = 'ACC', _('ACCEPTED')
+        DELETED = 'REJ', _('REJECTED')
 
     status = models.CharField(
         max_length=3,
@@ -476,7 +420,7 @@ class Review(models.Model):
         max_length=100
     )
 
-    marr = models.IntegerField(
+    mark = models.IntegerField(
     )
 
     created_at = models.DateTimeField(

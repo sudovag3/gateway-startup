@@ -6,10 +6,11 @@ from django.shortcuts import render, get_object_or_404
 
 # Contest
 from django.views.decorators.http import require_http_methods
-from rest_framework.generics import CreateAPIView, UpdateAPIView, ListAPIView
+from rest_framework.generics import CreateAPIView, UpdateAPIView, ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 
-from gateway.models import Contest, Subscribe
+from gateway.models import Contest, Subscribe, Command, Solution
+from django.db.models import Q
 
 # Distribution
 
@@ -24,9 +25,10 @@ from .forms import TestForm
 
 import asyncio
 
-from .permissions import ContestIsOwnedByMe
+from .permissions import ContestIsOwnedByMe, CommandIsOwnedByMe, SolutionIsOwnedByMe
 from .serializers import ContestAdminSerializer, ContestParticipantSerializer, ContestCreateSerializer, \
-    ContestUpdateSerializer, SubscribeSerializer
+    ContestUpdateSerializer, SubscribeSerializer, CommandListSerializer, CommandUpdateSerializer, \
+    CommandCreateSerializer, SolutionListSerializer
 from .utils import type_of_user_contest
 
 
@@ -120,28 +122,55 @@ class ListContestAPIView(ListAPIView):
         return queryset
 
 
-    # def get_queryset(self, *args, **kwargs):
-    #
-    #     contest_id = kwargs.get('contest_id')
-    #     print(contest_id + "!!!")
-    #     contest = get_object_or_404(Contest, id=contest_id)
-    #     return contest
+class CreateCommandAPIView(CreateAPIView):
+    serializer_class = CommandCreateSerializer
+    permission_classes = [IsAuthenticated]
 
 
+class UpdateCommandAPIView(UpdateAPIView):
+    serializer_class = CommandUpdateSerializer
+    permission_classes = [IsAuthenticated, CommandIsOwnedByMe]
+    queryset = Command.objects.all()
 
 
+class ListCommandAPIView(ListAPIView):
+    serializer_class = CommandListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self, *args, **kwargs):
+        tags = list(self.request.GET.get('tags', ""))
+        contest_id = self.request.GET.get('contest_id', "")
+        task_id = self.request.GET.get('task_id', "")
+
+        queryset = Command.objects.all()
+
+        if tags:
+            queryset = queryset.filter(tags__name__in=tags)
+        if contest_id:
+            queryset = queryset.filter(contest_id=contest_id)
+        if task_id:
+            queryset = queryset.filter(task_id=task_id)
+
+        return queryset
 
 
+class GetCommandAPIView(RetrieveAPIView):
+    serializer_class = SubscribeSerializer
+    permission_classes = [IsAuthenticated, CommandIsOwnedByMe]
+    queryset = Command.objects.all()
 
 
+class ListSolutionAPIView(ListAPIView):
+    serializer_class = SolutionListSerializer
+    permission_classes = [IsAuthenticated, SolutionIsOwnedByMe]
+    def get_queryset(self, *args, **kwargs):
+        reviewed = self.request.GET.get('reviewed', "None")
+        queryset = Solution.objects.all()
 
-# def contest_detail(request, id):
-#     contest_qs = get_object_or_404(Contest, id=id)
-#     type = type_of_user_contest(request.user, contest_qs)
-#     if contest_owner_required(request.user, product_qs.category.bot.slug):
-#         context = {
-#             'product': product_qs
-#         }
-#         return render(request, "shop/products/product_detail.html", context)
-#     else:
-#         return HttpResponseNotFound("Sorry, вам не сюда)")
+        if reviewed != "None":
+            if reviewed == True:
+                queryset = queryset.filter(command__review_to_command__reviewer_id=self.request.user.id)
+            elif reviewed == False:
+                queryset = queryset.filter(~Q(command__review_to_command__reviewer_id=self.request.user.id))
+
+        return queryset
