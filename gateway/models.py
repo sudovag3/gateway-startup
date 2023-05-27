@@ -115,7 +115,9 @@ class Contest(models.Model):
     )
 
     logo = models.CharField(
-        max_length=50
+        max_length=50,
+        blank=True,
+        null=True
     )
 
     participant_cap = models.IntegerField(
@@ -134,7 +136,9 @@ class Contest(models.Model):
     )
 
     region = models.CharField(
-        max_length=50
+        max_length=50,
+        blank=True,
+        null=True
     )
 
     created_at = models.DateTimeField(
@@ -154,6 +158,8 @@ class Contest(models.Model):
 
     tags = models.ManyToManyField(
         'Tag',
+        null=True,
+        blank=True
     )
 
     participants = models.ManyToManyField(
@@ -302,9 +308,7 @@ class Command(models.Model):
     contest = models.ForeignKey(
         'Contest',
         on_delete=models.PROTECT,
-        related_name='contest_commands',
-        blank=True,
-        null=True
+        related_name='contest_commands'
     )
 
     task = models.ForeignKey(
@@ -318,9 +322,7 @@ class Command(models.Model):
     admin = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name='admin_commands',
-        blank=True,
-        null=True
+        related_name='admin_commands'
     )
 
     participants = models.ManyToManyField(
@@ -329,7 +331,7 @@ class Command(models.Model):
     )
 
     tags = models.ManyToManyField(
-        'Tag',
+        'Tag'
     )
 
 

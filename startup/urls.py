@@ -18,7 +18,8 @@ from django.contrib import admin
 from django.urls import path, include
 from gateway import views
 from gateway.views import contest_detail, CreateContestAPIView, UpdateContestAPIView, ListContestAPIView, \
-    ListSubscribeAPIView, ListMySubscribeAPIView, buy_rate
+    ListSubscribeAPIView, ListMySubscribeAPIView, buy_rate, CreateCommandAPIView, UpdateCommandAPIView, \
+    ListCommandAPIView, GetCommandAPIView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -32,7 +33,12 @@ urlpatterns = [
     #Rate
     path('rate/all/', ListSubscribeAPIView.as_view()),
     path('rate/my/', ListMySubscribeAPIView.as_view()),
-    path('rate/buy<int:sub_id>', buy_rate),
+    path('rate/buy/<int:sub_id>', buy_rate),
+
+    path('command/create/', CreateCommandAPIView.as_view()),
+    path('command/update/<int:pk>/', UpdateCommandAPIView.as_view()),
+    path('command/list/', ListCommandAPIView.as_view()),
+    path('command/get/<int:pk>', GetCommandAPIView.as_view())
 
     # path('distribution/telegram/', views.index),
 ]

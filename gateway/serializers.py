@@ -39,10 +39,10 @@ class ContestParticipantSerializer(serializers.ModelSerializer):
                   'date_start',
                   'date_end',
                   'logo',
+                  'participant_cap',
                   'command_min',
                   'command_max',
                   'region',
-                  'tasks',
                   'tags'
                   ]
 
@@ -50,13 +50,21 @@ class ContestParticipantSerializer(serializers.ModelSerializer):
 class CommandCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Command
-        fields = '__all__'
+        fields = [
+            'command_name',
+            'open_to_invite',
+            'contest',
+            'admin'
+        ]
 
 
 class CommandUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Command
-        fields = '__all__'
+        fields = [
+            'command_name',
+            'open_to_invite'
+        ]
 
 
 class CommandListSerializer(serializers.ModelSerializer):

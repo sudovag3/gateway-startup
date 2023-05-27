@@ -6,6 +6,7 @@ from django.shortcuts import render, get_object_or_404
 
 # Contest
 from django.views.decorators.http import require_http_methods
+from rest_framework.decorators import permission_classes
 from rest_framework.generics import CreateAPIView, UpdateAPIView, ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 
@@ -20,12 +21,13 @@ from django.shortcuts import render
 from django.http import *
 
 from .enums.user_contest_type import UserContestType
-from .forms import TestForm
+from .forms import TestForm, SendSolutionValidationForm
 # from .bot.start import start_bot
 
 import asyncio
 
-from .permissions import ContestIsOwnedByMe, CommandIsOwnedByMe, SolutionIsOwnedByMe
+from .permissions import ContestIsOwnedByMe, CommandIsOwnedByMe, SolutionIsOwnedByMe, IsSolutionIsCorrect, \
+    IsNoHaveCommand
 from .serializers import ContestAdminSerializer, ContestParticipantSerializer, ContestCreateSerializer, \
     ContestUpdateSerializer, SubscribeSerializer, CommandListSerializer, CommandUpdateSerializer, \
     CommandCreateSerializer, SolutionListSerializer
@@ -97,7 +99,7 @@ class ListMySubscribeAPIView(ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Subscribe.objects.filter(id = self.request.user.subscribes.id)
+        return Subscribe.objects.filter(id = self.request.user.subscribe.id)
 
 
 def buy_rate(request, sub_id):
@@ -124,7 +126,7 @@ class ListContestAPIView(ListAPIView):
 
 class CreateCommandAPIView(CreateAPIView):
     serializer_class = CommandCreateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsNoHaveCommand]
 
 
 class UpdateCommandAPIView(UpdateAPIView):
@@ -155,9 +157,23 @@ class ListCommandAPIView(ListAPIView):
 
 
 class GetCommandAPIView(RetrieveAPIView):
-    serializer_class = SubscribeSerializer
+    serializer_class = CommandCreateSerializer
     permission_classes = [IsAuthenticated, CommandIsOwnedByMe]
     queryset = Command.objects.all()
+
+
+@permission_classes((IsAuthenticated, IsSolutionIsCorrect))
+@require_http_methods(["POST"])
+def send_solution(request):
+    form = SendSolutionValidationForm(request.POST)
+    #Если форма не валидная, нужно вернуть соответсвующую ошибку
+    if not form.is_valid():
+        solution_url = form.cleaned_data['solution_url']
+        command_id = form.cleaned_data['command_id']
+
+
+
+
 
 
 class ListSolutionAPIView(ListAPIView):
