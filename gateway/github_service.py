@@ -4,7 +4,7 @@ import datetime
 
 class GitHubService:
     def __init__(self):
-        self.github = Github()
+        self.github = Github(login_or_token="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")
 
     def get_repository(self, repo_url):
         repo_name = repo_url.split("/")[-1]
@@ -17,7 +17,7 @@ class GitHubService:
             repo = self.get_repository(repo_url)
             latest_commit = repo.get_commits()[0]
             latest_commit_date = latest_commit.commit.author.date
-            return latest_commit_date > date
+            return latest_commit_date.timestamp() > date.timestamp()
         return False
 
     def has_string_in_description(self, repo_url, string):

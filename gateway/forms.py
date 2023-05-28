@@ -6,6 +6,6 @@ class TestForm(forms.Form):
 
 
 class SendSolutionValidationForm(forms.Form):
-    solution_id = forms.URLField()
+    solution_url = forms.URLField()
     command_id = forms.IntegerField()
 

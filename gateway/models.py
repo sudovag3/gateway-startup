@@ -74,7 +74,6 @@ class User(AbstractUser, PermissionsMixin):
     )
 
 
-
 class Contest(models.Model):
     name = models.CharField(
         max_length=200

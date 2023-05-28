@@ -22,10 +22,10 @@ def create_test_contest(name_length=10, owner = ""):
     name = generate_random_string(name_length)
     status = random.choice([choice[0] for choice in Contest.Status.choices])
     description = generate_random_string(100)
-    reg_start = timezone.now() - timedelta(days=random.randint(0, 30))
-    reg_end = reg_start + timedelta(days=random.randint(1, 30))
-    date_start = reg_end + timedelta(days=random.randint(1, 30))
-    date_end = date_start + timedelta(days=random.randint(1, 30))
+    reg_start = timezone.now() - timedelta(days=5)
+    reg_end = reg_start + timedelta(days=10)
+    date_start = reg_end + timedelta(days=5)
+    date_end = date_start + timedelta(days=5)
     logo = generate_random_string(10)
     participant_cap = random.randint(1, 100)
     command_min = random.randint(1, 10)
@@ -240,3 +240,17 @@ def create_test_solution():
     )
 
     return solution
+
+
+def create_test_solution_json(url_length=20):
+    """
+    Создает тестовый объект Solution с заполнением только обязательных полей.
+    Возвращает словарь значений.
+    """
+    url = generate_random_string(url_length)
+    status = random.choice([choice[0] for choice in Solution.Status.choices])
+
+    solution_values = {
+        'url': url,
+        'status': status,
+    }

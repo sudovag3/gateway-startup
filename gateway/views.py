@@ -1,3 +1,5 @@
+import json
+
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
 
@@ -6,9 +8,12 @@ from django.shortcuts import render, get_object_or_404
 
 # Contest
 from django.views.decorators.http import require_http_methods
+from rest_framework import status
 from rest_framework.decorators import permission_classes
 from rest_framework.generics import CreateAPIView, UpdateAPIView, ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from gateway.models import Contest, Subscribe, Command, Solution
 from django.db.models import Q
@@ -27,7 +32,7 @@ from .forms import TestForm, SendSolutionValidationForm
 import asyncio
 
 from .permissions import ContestIsOwnedByMe, CommandIsOwnedByMe, SolutionIsOwnedByMe, IsSolutionIsCorrect, \
-    IsNoHaveCommand
+    IsNoHaveCommand, IsRequestInRegTime
 from .serializers import ContestAdminSerializer, ContestParticipantSerializer, ContestCreateSerializer, \
     ContestUpdateSerializer, SubscribeSerializer, CommandListSerializer, CommandUpdateSerializer, \
     CommandCreateSerializer, SolutionListSerializer
@@ -126,7 +131,7 @@ class ListContestAPIView(ListAPIView):
 
 class CreateCommandAPIView(CreateAPIView):
     serializer_class = CommandCreateSerializer
-    permission_classes = [IsAuthenticated, IsNoHaveCommand]
+    permission_classes = [IsAuthenticated, IsNoHaveCommand, IsRequestInRegTime]
 
 
 class UpdateCommandAPIView(UpdateAPIView):
@@ -162,23 +167,35 @@ class GetCommandAPIView(RetrieveAPIView):
     queryset = Command.objects.all()
 
 
-@permission_classes((IsAuthenticated, IsSolutionIsCorrect))
-@require_http_methods(["POST"])
-def send_solution(request):
-    form = SendSolutionValidationForm(request.POST)
-    #Если форма не валидная, нужно вернуть соответсвующую ошибку
-    if not form.is_valid():
-        solution_url = form.cleaned_data['solution_url']
-        command_id = form.cleaned_data['command_id']
+class SendSolutionAPIView(APIView):
 
+    permission_classes = (IsAuthenticated, IsSolutionIsCorrect)
 
+    def post(self, request):
+        form = SendSolutionValidationForm(request.data)
+        if form.is_valid():
+            solution_url = form.cleaned_data['solution_url']
+            command_id = form.cleaned_data['command_id']
 
+            command = Command.objects.filter(id = command_id).first()
+            sol, created = Solution.objects.get_or_create(
+                command_id=command_id,
+                url=solution_url,
+                task_id=command.task.id,
+                status="CRE"
+            )
 
+            # Вам нужно будет добавить здесь вашу логику обработки данных формы
+            return Response(SolutionListSerializer(sol).data, status=status.HTTP_200_OK)
+        else:
+            errors = form.errors.as_json()
+            return Response({'success': False, 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ListSolutionAPIView(ListAPIView):
     serializer_class = SolutionListSerializer
     permission_classes = [IsAuthenticated, SolutionIsOwnedByMe]
+
     def get_queryset(self, *args, **kwargs):
         reviewed = self.request.GET.get('reviewed', "None")
         queryset = Solution.objects.all()
