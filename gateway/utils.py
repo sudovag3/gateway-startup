@@ -15,15 +15,15 @@ def type_of_user_contest(user, id) -> UserContestType:
     else:
         return UserContestType.guest
 
-def create_test_contest(name_length=10, owner = ""):
+def create_test_contest(name_length=10, owner = "", participants = 0):
     """
     Создает тестовый объект Contest со случайными значениями.
     """
     name = generate_random_string(name_length)
     status = random.choice([choice[0] for choice in Contest.Status.choices])
     description = generate_random_string(100)
-    reg_start = timezone.now() - timedelta(days=5)
-    reg_end = reg_start + timedelta(days=10)
+    reg_start = timezone.now()
+    reg_end = timezone.now() + timedelta(days=10)
     date_start = reg_end + timedelta(days=5)
     date_end = date_start + timedelta(days=5)
     logo = generate_random_string(10)
@@ -33,7 +33,7 @@ def create_test_contest(name_length=10, owner = ""):
     region = generate_random_string(10)
     owner = owner if owner else create_test_user()
     tags = create_test_tags()
-    participants = create_test_participants()
+    participants = create_test_participants(0)
     contest_admins = create_test_contest_admins()
 
     contest = Contest.objects.create(

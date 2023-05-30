@@ -1,9 +1,24 @@
 from rest_framework import serializers
 
-from gateway.models import Contest, Subscribe, Command, Solution
+from gateway.models import Contest, Subscribe, Command, Solution, Tag, User, Review
+
+
+class TagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = '__all__'
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = '__all__'
 
 
 class ContestAdminSerializer(serializers.ModelSerializer):
+    tags = TagSerializer(read_only=True, many=True)
+    contest_admins = UserSerializer(read_only=True, many=True)
+
     class Meta:
         model = Contest
         fields = '__all__'
@@ -83,4 +98,10 @@ class CommandListSerializer(serializers.ModelSerializer):
 class SolutionListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Solution
+        fields = '__all__'
+
+
+class ReviewCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
         fields = '__all__'

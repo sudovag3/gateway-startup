@@ -15,7 +15,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from gateway.models import Contest, Subscribe, Command, Solution
+from gateway.models import Contest, Subscribe, Command, Solution, User
 from django.db.models import Q
 
 # Distribution
@@ -26,16 +26,16 @@ from django.shortcuts import render
 from django.http import *
 
 from .enums.user_contest_type import UserContestType
-from .forms import TestForm, SendSolutionValidationForm
+from .forms import TestForm, SendSolutionValidationForm, SetContestAdminValidationForm, SetParticipantValidationForm
 # from .bot.start import start_bot
 
 import asyncio
 
 from .permissions import ContestIsOwnedByMe, CommandIsOwnedByMe, SolutionIsOwnedByMe, IsSolutionIsCorrect, \
-    IsNoHaveCommand, IsRequestInRegTime
+    IsNoHaveCommand, IsRequestInRegTime, SetContestAdminApprove, ValidReview
 from .serializers import ContestAdminSerializer, ContestParticipantSerializer, ContestCreateSerializer, \
     ContestUpdateSerializer, SubscribeSerializer, CommandListSerializer, CommandUpdateSerializer, \
-    CommandCreateSerializer, SolutionListSerializer
+    CommandCreateSerializer, SolutionListSerializer, ReviewCreateSerializer
 from .utils import type_of_user_contest
 
 
@@ -190,6 +190,54 @@ class SendSolutionAPIView(APIView):
         else:
             errors = form.errors.as_json()
             return Response({'success': False, 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SetContestAdminAPIView(APIView):
+
+    permission_classes = (IsAuthenticated, SetContestAdminApprove)
+
+    def post(self, request):
+        form = SetContestAdminValidationForm(request.data)
+        if form.is_valid():
+            participant_id = form.cleaned_data['participant_id']
+            contest_id = form.cleaned_data['contest_id']
+
+            participant = User.objects.filter(id = participant_id)
+            contest = Contest.objects.filter(id = contest_id, participants__in=participant).first()
+
+            contest.contest_admins.set(participant)
+
+            return Response({"success" : True}, status=status.HTTP_200_OK)
+        else:
+            errors = form.errors.as_json()
+            return Response({'success': False, 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SetParticipantAPIView(APIView):
+
+    permission_classes = (IsAuthenticated, IsRequestInRegTime)
+
+    def post(self, request):
+        form = SetParticipantValidationForm(request.data)
+
+        if form.is_valid():
+
+            contest_id = form.cleaned_data['contest_id']
+
+            participant = request.user
+            contest = Contest.objects.filter(id = contest_id).first()
+
+            contest.participants.add(participant)
+
+            return Response({"success" : True}, status=status.HTTP_200_OK)
+        else:
+            errors = form.errors.as_json()
+            return Response({'success': False, 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CreateReviewAPIView(CreateAPIView):
+    serializer_class = ReviewCreateSerializer
+    permission_classes = [IsAuthenticated, ValidReview]
 
 
 class ListSolutionAPIView(ListAPIView):

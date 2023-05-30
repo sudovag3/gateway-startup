@@ -1,8 +1,9 @@
 from django.conf import settings
 from django.test import TestCase, Client
+from rest_framework import status
 
-from gateway.models import Contest, User, Subscribe, Command
-from rest_framework.test import APIClient
+from gateway.models import Contest, User, Subscribe, Command, Review
+from rest_framework.test import APIClient, APITestCase
 import random
 from django.utils import timezone
 from datetime import timedelta, datetime
@@ -187,7 +188,6 @@ class CreateMultipleCommandAPITestCase(TestCase):
 
         # First command should be created successfully
         response = self.client.post('/command/create/', data, format='json')
-        # print(response.data)
         self.assertEqual(response.status_code, 201)
 
         # Second command should fail
@@ -273,21 +273,6 @@ class SendSolutionTestCase(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertIn('You must send a correct github repository url', response.data['detail'])
 
-    # def test_send_solution_within_contest_duration(self):
-    #     self.solution_data = {
-    #         "solution_url": "https://github.com/sudovag3/ThreadsProg",
-    #         "command_id": self.command.id
-    #     }
-    #     self.client.login(username='testuser', password='testpassword')
-    #     self.contest = create_test_contest(10, self.user)
-    #     self.contest.date_start = datetime(2023, 5, 5, 5, 49, 0)
-    #     self.contest.date_end = datetime(2023, 5, 5, 7, 0, 0)
-    #     self.contest.save()
-    #
-    #     response = self.client.post('/solution/send', self.solution_data, format='json')
-    #     self.assertEqual(response.status_code, 200)
-    #     # Добавьте здесь дополнительные проверки в зависимости от вашего API
-
     def test_send_solution_after_contest_duration(self):
         self.solution_data = {
             "solution_url": "https://github.com/sudovag3/ThreadsProg",
@@ -318,4 +303,193 @@ class SendSolutionTestCase(TestCase):
         response = self.client.post('/solution/send', self.solution_data, format='json')
         # print(response.data)
         self.assertEqual(response.status_code, 200)
+
+
+class TestSetParticipantAPIView(APITestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpassword')
+        self.contest = create_test_contest(10, self.user)
+        self.contest.reg_start = timezone.now()
+        self.contest.reg_end = timezone.now() + timedelta(days=1)
+        self.contest.save()
+        self.client = APIClient()
+
+    def test_user_registers_to_contest(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.post(
+            '/contest/set_participant/',
+            {'contest_id': self.contest.id},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.contest.refresh_from_db()
+        self.assertIn(self.user, self.contest.participants.all())
+
+    def test_user_registers_twice_to_contest(self):
+        self.client.login(username='testuser', password='testpassword')
+        self.client.post(
+            '/contest/set_participant/',
+            {'contest_id': self.contest.id},
+            format='json'
+        )
+
+        response = self.client.post(
+            '/contest/set_participant/',
+            {'contest_id': self.contest.id},
+            format='json'
+        )
+
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.contest.refresh_from_db()
+        self.assertEqual(self.contest.participants.count(), 1)
+
+    def test_user_registers_outside_reg_time(self):
+        self.contest.reg_start = timezone.now() - timedelta(days=2)
+        self.contest.reg_end = timezone.now() - timedelta(days=1)
+        self.contest.save()
+
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.post(
+            '/contest/set_participant/',
+            {'contest_id': self.contest.id},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['detail'], 'The request should be made between reg_start and reg_end of the contest')
+
+
+class TestSetContestAdminAPIView(APITestCase):
+
+    def setUp(self):
+        self.owner = User.objects.create_user(username='owner', password='password')
+        self.user = User.objects.create_user(username='testuser', password='testpassword')
+        self.contest = create_test_contest(10, self.owner)
+        self.client = APIClient()
+
+    def test_non_owner_tries_to_set_admin(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.post(
+            '/contest/set_admin/',
+            {'contest_id': self.contest.id, 'participant_id': self.user.id},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['detail'], 'You can only set admins to contest owned to you.')
+
+    def test_owner_tries_to_set_admin_with_invalid_form(self):
+        self.client.login(username='owner', password='password')
+        response = self.client.post(
+            '/contest/set_admin/',
+            {'contest_id': self.contest.id},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_owner_sets_wrong_user(self):
+        self.client.login(username='owner', password='password')
+        response = self.client.post(
+            '/contest/set_admin/',
+            {'contest_id': self.contest.id, 'participant_id': 123},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['detail'], f'Not valid user - {123}')
+
+    def test_owner_sets_wrong_user(self):
+        self.client.login(username='owner', password='password')
+        response = self.client.post(
+            '/contest/set_admin/',
+            {'contest_id': self.contest.id, 'participant_id': self.user.id},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['detail'], f'User {self.user.id} not register')
+
+
+    def test_owner_sets_admin(self):
+        self.client.login(username='testuser', password='testpassword')
+
+        response = self.client.post(
+            '/contest/set_participant/',
+            {'contest_id': self.contest.id},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.client.login(username='owner', password='password')
+        response = self.client.post(
+            '/contest/set_admin/',
+            {'contest_id': self.contest.id, 'participant_id': self.user.id},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.contest.refresh_from_db()
+        self.assertIn(self.user, self.contest.contest_admins.all())
+
+class TestCreateReviewAPIView(APITestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username='owner', password='password')
+        self.user = User.objects.create_user(username='testuser', password='testpassword')
+        self.contest = create_test_contest(10, self.owner)
+        self.command = create_test_command(contest=self.contest, admin=self.user)
+        self.client = APIClient()
+
+    def test_create_review_successfully(self):
+        self.client.login(username='owner', password='password')
+        response = self.client.post(
+            '/review/send/',
+            {'command': self.command.id, 'reviewer': self.owner.id, 'mark': 10, 'comment': 'Good'},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Review.objects.get().mark, 10)
+
+    def test_create_second_review_for_the_same_command(self):
+        self.client.login(username='owner', password='password')
+        self.client.post(
+            '/review/send/',
+            {'command': self.command.id, 'reviewer': self.owner.id, 'mark': 10, 'comment': 'Good'},
+            format='json'
+        )
+
+        response = self.client.post(
+            '/review/send/',
+            {'command': self.command.id, 'reviewer': self.owner.id, 'mark': 5, 'comment': 'Good'},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['detail'], 'Not valid Review')
+
+    def test_create_review_by_non_owner(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.post(
+            '/review/send/',
+            {'command': self.command.id, 'reviewer': self.user.id, 'mark': 10, 'comment': 'Good'},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['detail'], 'Not Owner/Admin')
+
+
+    def test_create_review_with_wrong_reviewer(self):
+        self.client.login(username='owner', password='password')
+        response = self.client.post(
+            '/review/send/',
+            {'command': self.command.id, 'reviewer': 123, 'mark': 10, 'comment': 'Good'},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['detail'], 'Wrong reviewer')
 

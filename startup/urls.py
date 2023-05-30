@@ -1,25 +1,10 @@
-"""
-URL configuration for startup project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path, include
 from gateway import views
 from gateway.views import contest_detail, CreateContestAPIView, UpdateContestAPIView, ListContestAPIView, \
     ListSubscribeAPIView, ListMySubscribeAPIView, buy_rate, CreateCommandAPIView, UpdateCommandAPIView, \
-    ListCommandAPIView, GetCommandAPIView, SendSolutionAPIView
+    ListCommandAPIView, GetCommandAPIView, SendSolutionAPIView, SetContestAdminAPIView, SetParticipantAPIView, \
+    CreateReviewAPIView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -29,6 +14,8 @@ urlpatterns = [
     path('contest/create/', CreateContestAPIView.as_view()),
     path('contest/update/<int:pk>/', UpdateContestAPIView.as_view()),
     path('contest/list/', ListContestAPIView.as_view()),
+    path('contest/set_admin/', SetContestAdminAPIView.as_view()),
+    path('contest/set_participant/', SetParticipantAPIView.as_view()),
 
     #Rate
     path('rate/all/', ListSubscribeAPIView.as_view()),
@@ -40,7 +27,9 @@ urlpatterns = [
     path('command/list/', ListCommandAPIView.as_view()),
     path('command/get/<int:pk>', GetCommandAPIView.as_view()),
 
-    path('solution/send', SendSolutionAPIView.as_view())
+    path('solution/send', SendSolutionAPIView.as_view()),
+
+    path('review/send/', CreateReviewAPIView.as_view())
 
     # path('distribution/telegram/', views.index),
 ]
