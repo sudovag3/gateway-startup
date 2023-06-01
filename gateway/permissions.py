@@ -182,5 +182,11 @@ class IsRequestInContestTime(BasePermission):
         raise PermissionDenied(self.message)
 
 
+class AwardOwnerPermission(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.task.contest.owner == request.user
 
 
+class TaskOwnerOrAdminPermission(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.contest.owner == request.user or request.user in obj.contest.contest_admins.all()

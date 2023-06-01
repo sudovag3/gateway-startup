@@ -160,7 +160,8 @@ def create_test_subscribe():
 
     return subscribe
 
-def create_test_award():
+
+def create_test_award(command, task):
     """
     Создает тестовый объект Award с заполнением случайными значениями.
     Возвращает экземпляр модели Award.
@@ -172,13 +173,15 @@ def create_test_award():
     award = Award.objects.create(
         name=name,
         description=description,
-        award=award
+        award=award,
+        command=command,
+        task=task
     )
 
     return award
 
 
-def create_test_task():
+def create_test_task(contest = None):
     """
     Создает тестовый объект Task с заполнением случайными значениями.
     Возвращает экземпляр модели Task.
@@ -188,7 +191,8 @@ def create_test_task():
 
     task = Task.objects.create(
         task_name=task_name,
-        task_description=task_description
+        task_description=task_description,
+        contest = contest
     )
 
     return task

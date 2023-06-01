@@ -1,6 +1,7 @@
 Django==4.2.1
 
 djangorestframework~=3.14.0
+drf-yasg
 pip~=21.1.2
 attrs~=23.1.0
 wheel~=0.36.2

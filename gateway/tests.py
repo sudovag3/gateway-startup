@@ -1,8 +1,9 @@
 from django.conf import settings
 from django.test import TestCase, Client
+from django.urls import reverse
 from rest_framework import status
 
-from gateway.models import Contest, User, Subscribe, Command, Review
+from gateway.models import Contest, User, Subscribe, Command, Review, Award, Task, Invite
 from rest_framework.test import APIClient, APITestCase
 import random
 from django.utils import timezone
@@ -12,7 +13,7 @@ from .forms import SendSolutionValidationForm
 from .models import Contest, Tag
 from .serializers import ContestCreateSerializer, CommandCreateSerializer
 from .utils import create_test_contest, create_test_contest_json, create_test_subscribe, create_test_command_json, \
-    create_test_command, create_test_task
+    create_test_command, create_test_task, create_test_award
 
 from django.utils.timezone import activate
 activate(settings.TIME_ZONE)
@@ -434,6 +435,7 @@ class TestSetContestAdminAPIView(APITestCase):
         self.contest.refresh_from_db()
         self.assertIn(self.user, self.contest.contest_admins.all())
 
+
 class TestCreateReviewAPIView(APITestCase):
     def setUp(self):
         self.owner = User.objects.create_user(username='owner', password='password')
@@ -492,4 +494,294 @@ class TestCreateReviewAPIView(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(response.data['detail'], 'Wrong reviewer')
+
+# Award
+class TestAwardView(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpassword')
+        self.contest = create_test_contest(10, self.user)
+        self.task = create_test_task(self.contest)
+        self.command = create_test_command(self.contest, self.user)
+        self.award = create_test_award(self.command, self.task)
+        self.client = APIClient()
+
+    def test_create_award_successfully(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.post(
+            '/award/create/',
+            {'task': self.task.id, 'command': self.command.id, 'name': "Best"},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIsNotNone(Award.objects.get(task=self.task, command=self.command, name="Best"))
+
+    def test_create_award_unauthenticated(self):
+        response = self.client.post(
+            '/award/create/',
+            {'task': self.task.id, 'command': self.command.id},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_create_award_with_invalid_task(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.post(
+            '/award/create/',
+            {'task': 999, 'command': self.command.id},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_award_with_invalid_command(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.post(
+            '/award/create/',
+            {'task': self.task.id, 'command': 999},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # Tests for Award update
+
+    def test_update_award_successfully(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.put(
+            f'/award/{self.award.id}/update/',
+            {'task': self.task.id, 'command': self.command.id, 'name': 'Better Task', 'description': 'For the better task', 'award': 'Silver Medal'},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.award.refresh_from_db()
+        self.assertEqual(self.award.name, 'Better Task')
+        self.assertEqual(self.award.description, 'For the better task')
+        self.assertEqual(self.award.award, 'Silver Medal')
+
+    def test_update_award_unauthenticated(self):
+        response = self.client.put(
+            f'/award/{self.award.id}/update/',
+            {'task': self.task.id, 'command': self.command.id, 'name': 'Better Task', 'description': 'For the better task', 'award': 'Silver Medal'},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_update_award_non_existent(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.put(
+            '/award/999/update/',
+            {'task': self.task.id, 'command': self.command.id, 'name': 'Better Task', 'description': 'For the better task', 'award': 'Silver Medal'},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    # Tests for Award deletion
+
+    def test_delete_award_successfully(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.delete(
+            f'/award/{self.award.id}/delete/',
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        with self.assertRaises(Award.DoesNotExist):
+            Award.objects.get(id=self.award.id)
+
+    def test_delete_award_unauthenticated(self):
+        response = self.client.delete(
+            f'/award/{self.award.id}/delete/',
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_delete_award_non_existent(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.delete(
+            '/award/999/delete/',
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    # Tests for listing Awards
+
+    def test_list_awards_successfully(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.get(
+            '/award/list/',
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['id'], self.award.id)
+
+    def test_list_awards_unauthenticated(self):
+        response = self.client.get(
+            '/award/list/',
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+# Task
+class TestTaskView(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpassword')
+        self.contest = create_test_contest(10, self.user)
+        self.tag = Tag.objects.create(name="Test tag")
+        self.client = APIClient()
+
+    def test_create_task_successfully(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.post(
+            '/task/create/',
+            {'task_name': 'Test task', 'task_description': 'Test description', 'contest': self.contest.id, 'tags': [self.tag.id]},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIsNotNone(Task.objects.get(task_name='Test task'))
+
+    def test_create_task_unauthenticated(self):
+        response = self.client.post(
+            '/task/create/',
+            {'name': 'Test task', 'description': 'Test description', 'contest': self.contest.id, 'tags': [self.tag.id]},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_create_task_with_invalid_contest(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.post(
+            '/task/create/',
+            {'name': 'Test task', 'description': 'Test description', 'contest': 999, 'tags': [self.tag.id]},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_task_with_invalid_tag(self):
+        self.client.login(username='testuser', password='testpassword')
+        response = self.client.post(
+            '/task/create/',
+            {'name': 'Test task', 'description': 'Test description', 'contest': self.contest.id, 'tags': [999]},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+    def test_update_task_successfully(self):
+        self.client.login(username='testuser', password='testpassword')
+        task = Task.objects.create(task_name='Old task', contest=self.contest)
+        response = self.client.put(
+            f'/task/{task.id}/update/',
+            {'task_name': 'Updated task', 'task_description': 'Updated description', 'contest': self.contest.id, 'tags': [self.tag.id]},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Task.objects.get(id=task.id).task_name, 'Updated task')
+
+    def test_update_task_unauthenticated(self):
+        task = Task.objects.create(task_name='Old task', contest=self.contest)
+        response = self.client.put(
+            f'/task/{task.id}/update/',
+            {'task_name': 'Updated task', 'task_description': 'Updated description', 'contest': self.contest.id, 'tags': [self.tag.id]},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_delete_task_successfully(self):
+        self.client.login(username='testuser', password='testpassword')
+        task = Task.objects.create(task_name='Task to delete', contest=self.contest)
+        response = self.client.delete(
+            f'/task/{task.id}/delete/',
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        with self.assertRaises(Task.DoesNotExist):
+            Task.objects.get(id=task.id)
+
+    def test_list_tasks_successfully(self):
+        self.client.login(username='testuser', password='testpassword')
+        Task.objects.create(task_name='Task 1', contest=self.contest)
+        Task.objects.create(task_name='Task 2', contest=self.contest)
+        response = self.client.get(
+            '/task/list/',
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+
+# Invite
+class TestInviteViews(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpassword')
+        self.user1 = User.objects.create_user(username='user1', password='pass')
+        self.user2 = User.objects.create_user(username='user2', password='pass')
+        self.contest = create_test_contest(10, self.user)
+        self.command = create_test_command(self.contest, self.user1)
+        # self.command.participants.add(self.user2)
+        # self.command.save()
+        self.client = APIClient()
+
+    def test_create_invite_successfully(self):
+        self.client.login(username='user2', password='pass')
+        response = self.client.post(reverse('create_invite'), {'command': self.command.id}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Invite.objects.filter(invited=self.user2, command=self.command).exists())
+
+    def test_send_invite_successfully(self):
+        self.client.login(username='user1', password='pass')
+        response = self.client.post(reverse('send_invite'), {'command': self.command.id, 'invited': self.user2.id}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Invite.objects.filter(invited=self.user2, command=self.command).exists())
+
+    def test_list_invites_successfully(self):
+        self.client.login(username='user2', password='pass')
+        Invite.objects.create(command=self.command, inviter=self.user1, invited=self.user2, status=Invite.Status.CREATED)
+        response = self.client.get(reverse('list_invite'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_list_applications_successfully(self):
+        self.client.login(username='user1', password='pass')
+        Invite.objects.create(command=self.command, inviter=self.user1, invited=self.user2, status=Invite.Status.CREATED)
+        response = self.client.get(reverse('list_application'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_accept_application_successfully(self):
+        self.client.login(username='user1', password='pass')
+        invite = Invite.objects.create(command=self.command, inviter=self.user1, invited=self.user2,
+                                       status=Invite.Status.CREATED)
+        response = self.client.post(reverse('accept_decline_application'), {'invite': invite.id, 'accept': True},
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        invite.refresh_from_db()
+        self.assertEqual(invite.status, Invite.Status.ACCEPTED)
+
+    def test_decline_application_successfully(self):
+        self.client.login(username='user1', password='pass')
+        invite = Invite.objects.create(command=self.command, inviter=self.user1, invited=self.user2,
+                                       status=Invite.Status.CREATED)
+        response = self.client.post(reverse('accept_decline_application'), {'invite': invite.id, 'accept': False},
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        invite.refresh_from_db()
+        self.assertEqual(invite.status, Invite.Status.REJECTED)
+
+    def test_accept_invite_successfully(self):
+        self.client.login(username='user2', password='pass')
+        invite = Invite.objects.create(command=self.command, inviter=self.user1, invited=self.user2,
+                                       status=Invite.Status.CREATED)
+        response = self.client.post(reverse('accept_decline_invite'), {'invite': invite.id, 'accept': True},
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        invite.refresh_from_db()
+        self.assertEqual(invite.status, Invite.Status.ACCEPTED)
+
+    def test_decline_invite_successfully(self):
+        self.client.login(username='user2', password='pass')
+        invite = Invite.objects.create(command=self.command, inviter=self.user1, invited=self.user2,
+                                       status=Invite.Status.CREATED)
+        response = self.client.post(reverse('accept_decline_invite'), {'invite': invite.id, 'accept': False},
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        invite.refresh_from_db()
+        self.assertEqual(invite.status, Invite.Status.REJECTED)
 

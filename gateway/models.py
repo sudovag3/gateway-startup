@@ -207,6 +207,7 @@ class Subscribe(models.Model):
     )
 
 
+#TODO
 
 class Award(models.Model):
 
@@ -373,8 +374,8 @@ class Solution(models.Model):
 class Invite(models.Model):
     class Status(models.TextChoices):
         CREATED = 'CRE', _('CREATED')
-        COMPLETED = 'ACC', _('ACCEPTED')
-        DELETED = 'REJ', _('REJECTED')
+        ACCEPTED = 'ACC', _('ACCEPTED')
+        REJECTED = 'REJ', _('REJECTED')
 
     status = models.CharField(
         max_length=3,
@@ -399,7 +400,9 @@ class Invite(models.Model):
         settings.AUTH_USER_MODEL,
         verbose_name='User',
         on_delete=models.CASCADE,
-        related_name='inviter_to_user'
+        related_name='inviter_to_user',
+        null = True,
+        blank = True
     )
 
     invited = models.ForeignKey(
