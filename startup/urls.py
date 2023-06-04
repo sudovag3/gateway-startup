@@ -10,7 +10,7 @@ from gateway.views import contest_detail, CreateContestAPIView, UpdateContestAPI
     ListCommandAPIView, GetCommandAPIView, SendSolutionAPIView, SetContestAdminAPIView, SetParticipantAPIView, \
     CreateReviewAPIView, AwardCreateView, AwardUpdateView, AwardDeleteView, AwardListView, TaskCreateView, \
     TaskUpdateView, TaskDeleteView, TaskListView, CreateInviteView, SendInviteView, InviteListView, ApplicationListView, \
-    AcceptDeclineApplicationView, AcceptDeclineInviteView
+    AcceptDeclineApplicationView, AcceptDeclineInviteView, RemoveParticipantView
 
 schema_view = get_schema_view(
    openapi.Info(
@@ -44,6 +44,7 @@ urlpatterns = [
     path('command/update/<int:pk>/', UpdateCommandAPIView.as_view()),
     path('command/list/', ListCommandAPIView.as_view()),
     path('command/get/<int:pk>', GetCommandAPIView.as_view()),
+    path('command/remove/', RemoveParticipantView.as_view()),
 
     #Solution
     path('solution/send', SendSolutionAPIView.as_view()),

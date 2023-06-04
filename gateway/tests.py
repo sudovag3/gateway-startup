@@ -785,3 +785,4 @@ class TestInviteViews(APITestCase):
         invite.refresh_from_db()
         self.assertEqual(invite.status, Invite.Status.REJECTED)
 
+

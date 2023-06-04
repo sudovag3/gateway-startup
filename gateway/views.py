@@ -469,3 +469,48 @@ class AcceptDeclineInviteView(APIView):
             return Response({"message": "Invite successfully updated"}, status=status.HTTP_200_OK)
 
         return Response({"error": "Invite could not be updated"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RemoveParticipantView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_description="Remove a participant from a command",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'command_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='Command id'),
+                'user_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='User id to be removed'),
+            },
+        ),
+        responses={
+            200: "User successfully removed from the command",
+            400: "Invalid request / Registration period is not active / User is not a participant in this command",
+            403: "Only command admin can remove participants",
+        },
+    )
+    def post(self, request):
+        command_id = request.data.get('command_id')
+        user_id = request.data.get('user_id')
+
+        command = get_object_or_404(Command, id=command_id)
+
+        # Проверяем, что текущий пользователь является админом команды
+        if command.admin != request.user:
+            return Response({"error": "Only command admin can remove participants"},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        # Проверяем, что регистрационный период активен
+        if not command.contest.reg_start <= timezone.now() <= command.contest.reg_end:
+            return Response({"error": "You can only remove participants during the registration period"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        user = get_object_or_404(User, id=user_id)
+
+        if user not in command.participants.all():
+            return Response({"error": "User is not a participant in this command"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        command.participants.remove(user)
+
+        return Response({"message": "User successfully removed from the command"}, status=status.HTTP_200_OK)
