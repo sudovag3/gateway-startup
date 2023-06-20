@@ -28,7 +28,7 @@ class ListContestAPITestCase(TestCase):
 
     def test_contest_list(self):
         self.client.login(username='testuser', password='testpassword')
-        response = self.client.get('/contest/list/', format='json')
+        response = self.client.get('/api/v1/contest/list/', format='json')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 3)
@@ -43,7 +43,7 @@ class CreateContestAPITestCase(TestCase):
         self.client.login(username='testuser', password='testpassword')
         data = create_test_contest_json(10)
         data["owner"] = self.user.id
-        response = self.client.post('/contest/create/', data, format='json')
+        response = self.client.post('/api/v1/contest/create/', data, format='json')
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(Contest.objects.count(), 1)
@@ -61,7 +61,7 @@ class UpdateContestAPITestCase(TestCase):
 
         new_data = ContestCreateSerializer(self.contest).data
         new_data["name"] = "new Name"
-        response = self.client.put(f'/contest/update/{self.contest.id}/', new_data, format='json')
+        response = self.client.put(f'/api/v1/contest/update/{self.contest.id}/', new_data, format='json')
 
         self.assertEqual(response.status_code, 200)
         self.contest.refresh_from_db()
@@ -78,7 +78,7 @@ class ListSubscribeAPITestCase(TestCase):
 
     def test_list_subscribe(self):
         self.client.login(username='testuser', password='testpassword')
-        response = self.client.get('/rate/all/', format='json')
+        response = self.client.get('/api/v1/rate/all/', format='json')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 2)
@@ -96,7 +96,7 @@ class ListMySubscribeAPITestCase(TestCase):
 
     def test_list_my_subscribe(self):
         self.client.login(username='testuser', password='testpassword')
-        response = self.client.get('/rate/my/', format='json')
+        response = self.client.get('/api/v1/rate/my/', format='json')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
@@ -113,7 +113,7 @@ class CreateCommandAPITestCase(TestCase):
         data = create_test_command_json()
         data["admin"] = self.user.id
         data["contest"] = self.contest.id
-        response = self.client.post('/command/create/', data, format='json')
+        response = self.client.post('/api/v1/command/create/', data, format='json')
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(Command.objects.count(), 1)
@@ -132,7 +132,7 @@ class UpdateCommandAPITestCase(TestCase):
 
         new_data = CommandCreateSerializer(self.command).data
         new_data["command_name"] = "new Name"
-        response = self.client.put(f'/command/update/{self.command.id}/', new_data, format='json')
+        response = self.client.put(f'/api/v1/command/update/{self.command.id}/', new_data, format='json')
 
         self.assertEqual(response.status_code, 200)
         self.command.refresh_from_db()
@@ -153,7 +153,7 @@ class ListCommandAPITestCase(TestCase):
 
     def test_command_list(self):
         self.client.login(username='testuser1', password='testpassword')
-        response = self.client.get('/command/list/', format='json')
+        response = self.client.get('/api/v1/command/list/', format='json')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 3)
@@ -168,7 +168,7 @@ class GetCommandAPITestCase(TestCase):
 
     def test_get_command(self):
         self.client.login(username='testuser', password='testpassword')
-        response = self.client.get(f'/command/get/{self.command.id}', format='json')
+        response = self.client.get(f'/api/v1/command/get/{self.command.id}', format='json')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['command_name'], self.command.command_name)
@@ -188,11 +188,11 @@ class CreateMultipleCommandAPITestCase(TestCase):
         data["contest"] = self.contest.id
 
         # First command should be created successfully
-        response = self.client.post('/command/create/', data, format='json')
+        response = self.client.post('/api/v1/command/create/', data, format='json')
         self.assertEqual(response.status_code, 201)
 
         # Second command should fail
-        response = self.client.post('/command/create/', data, format='json')
+        response = self.client.post('/api/v1/command/create/', data, format='json')
         self.assertEqual(response.status_code, 403)
         self.assertIn('You can only once create a command', str(response.data['detail']))
 
@@ -211,7 +211,7 @@ class UpdateCommandPermissionAPITestCase(TestCase):
         new_data = CommandCreateSerializer(self.command).data
         new_data["command_name"] = "new Name"
 
-        response = self.client.put(f'/command/update/{self.command.id}/', new_data, format='json')
+        response = self.client.put(f'/api/v1/command/update/{self.command.id}/', new_data, format='json')
         self.assertEqual(response.status_code, 403)
 
 
@@ -231,7 +231,7 @@ class CreateCommandAPITestCase(TestCase):
         data = create_test_command_json()
         data["admin"] = self.user.id
         data["contest"] = self.contest.id
-        response = self.client.post('/command/create/', data, format='json')
+        response = self.client.post('/api/v1/command/create/', data, format='json')
 
         self.assertEqual(response.status_code, 403)
         self.assertIn('The request should be made between reg_start and reg_end of the contest', str(response.data['detail']))
@@ -260,7 +260,7 @@ class SendSolutionTestCase(TestCase):
         self.client.login(username='testuser', password='testpassword')
         # Add your specific solution data here
         self.solution_data['solution_url'] = "1234"
-        response = self.client.post('/solution/send', self.solution_data, format='json')
+        response = self.client.post('/api/v1/solution/send', self.solution_data, format='json')
         self.solution_data['solution_url'] = "1234@example.com"
 
         self.assertEqual(response.status_code, 403)
@@ -270,7 +270,7 @@ class SendSolutionTestCase(TestCase):
         self.client.login(username='testuser', password='testpassword')
         # Add your specific solution data here
 
-        response = self.client.post('/solution/send', self.solution_data, format='json')
+        response = self.client.post('/api/v1/solution/send', self.solution_data, format='json')
         self.assertEqual(response.status_code, 403)
         self.assertIn('You must send a correct github repository url', response.data['detail'])
 
@@ -284,7 +284,7 @@ class SendSolutionTestCase(TestCase):
         self.contest.date_end = datetime(2023, 5, 5, 14, 0, 0)
         self.contest.save()
 
-        response = self.client.post('/solution/send', self.solution_data, format='json')
+        response = self.client.post('/api/v1/solution/send', self.solution_data, format='json')
         self.assertEqual(response.status_code, 403)
         # print(response.data['detail'])
         self.assertEqual(response.data['detail'], 'You can send solution in right commit date range')
@@ -301,7 +301,7 @@ class SendSolutionTestCase(TestCase):
         self.contest.date_end = datetime(2023, 5, 5, 17, 0, 0)
         self.contest.save()
 
-        response = self.client.post('/solution/send', self.solution_data, format='json')
+        response = self.client.post('/api/v1/solution/send', self.solution_data, format='json')
         # print(response.data)
         self.assertEqual(response.status_code, 200)
 
@@ -319,7 +319,7 @@ class TestSetParticipantAPIView(APITestCase):
     def test_user_registers_to_contest(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.post(
-            '/contest/set_participant/',
+            '/api/v1/contest/set_participant/',
             {'contest_id': self.contest.id},
             format='json'
         )
@@ -330,13 +330,13 @@ class TestSetParticipantAPIView(APITestCase):
     def test_user_registers_twice_to_contest(self):
         self.client.login(username='testuser', password='testpassword')
         self.client.post(
-            '/contest/set_participant/',
+            '/api/v1/contest/set_participant/',
             {'contest_id': self.contest.id},
             format='json'
         )
 
         response = self.client.post(
-            '/contest/set_participant/',
+            '/api/v1/contest/set_participant/',
             {'contest_id': self.contest.id},
             format='json'
         )
@@ -353,7 +353,7 @@ class TestSetParticipantAPIView(APITestCase):
 
         self.client.login(username='testuser', password='testpassword')
         response = self.client.post(
-            '/contest/set_participant/',
+            '/api/v1/contest/set_participant/',
             {'contest_id': self.contest.id},
             format='json'
         )
@@ -373,7 +373,7 @@ class TestSetContestAdminAPIView(APITestCase):
     def test_non_owner_tries_to_set_admin(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.post(
-            '/contest/set_admin/',
+            '/api/v1/contest/set_admin/',
             {'contest_id': self.contest.id, 'participant_id': self.user.id},
             format='json'
         )
@@ -384,7 +384,7 @@ class TestSetContestAdminAPIView(APITestCase):
     def test_owner_tries_to_set_admin_with_invalid_form(self):
         self.client.login(username='owner', password='password')
         response = self.client.post(
-            '/contest/set_admin/',
+            '/api/v1/contest/set_admin/',
             {'contest_id': self.contest.id},
             format='json'
         )
@@ -394,7 +394,7 @@ class TestSetContestAdminAPIView(APITestCase):
     def test_owner_sets_wrong_user(self):
         self.client.login(username='owner', password='password')
         response = self.client.post(
-            '/contest/set_admin/',
+            '/api/v1/contest/set_admin/',
             {'contest_id': self.contest.id, 'participant_id': 123},
             format='json'
         )
@@ -405,7 +405,7 @@ class TestSetContestAdminAPIView(APITestCase):
     def test_owner_sets_wrong_user(self):
         self.client.login(username='owner', password='password')
         response = self.client.post(
-            '/contest/set_admin/',
+            '/api/v1/contest/set_admin/',
             {'contest_id': self.contest.id, 'participant_id': self.user.id},
             format='json'
         )
@@ -418,7 +418,7 @@ class TestSetContestAdminAPIView(APITestCase):
         self.client.login(username='testuser', password='testpassword')
 
         response = self.client.post(
-            '/contest/set_participant/',
+            '/api/v1/contest/set_participant/',
             {'contest_id': self.contest.id},
             format='json'
         )
@@ -426,7 +426,7 @@ class TestSetContestAdminAPIView(APITestCase):
 
         self.client.login(username='owner', password='password')
         response = self.client.post(
-            '/contest/set_admin/',
+            '/api/v1/contest/set_admin/',
             {'contest_id': self.contest.id, 'participant_id': self.user.id},
             format='json'
         )
@@ -447,7 +447,7 @@ class TestCreateReviewAPIView(APITestCase):
     def test_create_review_successfully(self):
         self.client.login(username='owner', password='password')
         response = self.client.post(
-            '/review/send/',
+            '/api/v1/review/send/',
             {'command': self.command.id, 'reviewer': self.owner.id, 'mark': 10, 'comment': 'Good'},
             format='json'
         )
@@ -458,13 +458,13 @@ class TestCreateReviewAPIView(APITestCase):
     def test_create_second_review_for_the_same_command(self):
         self.client.login(username='owner', password='password')
         self.client.post(
-            '/review/send/',
+            '/api/v1/review/send/',
             {'command': self.command.id, 'reviewer': self.owner.id, 'mark': 10, 'comment': 'Good'},
             format='json'
         )
 
         response = self.client.post(
-            '/review/send/',
+            '/api/v1/review/send/',
             {'command': self.command.id, 'reviewer': self.owner.id, 'mark': 5, 'comment': 'Good'},
             format='json'
         )
@@ -475,7 +475,7 @@ class TestCreateReviewAPIView(APITestCase):
     def test_create_review_by_non_owner(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.post(
-            '/review/send/',
+            '/api/v1/review/send/',
             {'command': self.command.id, 'reviewer': self.user.id, 'mark': 10, 'comment': 'Good'},
             format='json'
         )
@@ -487,7 +487,7 @@ class TestCreateReviewAPIView(APITestCase):
     def test_create_review_with_wrong_reviewer(self):
         self.client.login(username='owner', password='password')
         response = self.client.post(
-            '/review/send/',
+            '/api/v1/review/send/',
             {'command': self.command.id, 'reviewer': 123, 'mark': 10, 'comment': 'Good'},
             format='json'
         )
@@ -508,7 +508,7 @@ class TestAwardView(APITestCase):
     def test_create_award_successfully(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.post(
-            '/award/create/',
+            '/api/v1/award/create/',
             {'task': self.task.id, 'command': self.command.id, 'name': "Best"},
             format='json'
         )
@@ -518,7 +518,7 @@ class TestAwardView(APITestCase):
 
     def test_create_award_unauthenticated(self):
         response = self.client.post(
-            '/award/create/',
+            '/api/v1/award/create/',
             {'task': self.task.id, 'command': self.command.id},
             format='json'
         )
@@ -527,7 +527,7 @@ class TestAwardView(APITestCase):
     def test_create_award_with_invalid_task(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.post(
-            '/award/create/',
+            '/api/v1/award/create/',
             {'task': 999, 'command': self.command.id},
             format='json'
         )
@@ -536,7 +536,7 @@ class TestAwardView(APITestCase):
     def test_create_award_with_invalid_command(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.post(
-            '/award/create/',
+            '/api/v1/award/create/',
             {'task': self.task.id, 'command': 999},
             format='json'
         )
@@ -547,7 +547,7 @@ class TestAwardView(APITestCase):
     def test_update_award_successfully(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.put(
-            f'/award/{self.award.id}/update/',
+            f'/api/v1/award/{self.award.id}/update/',
             {'task': self.task.id, 'command': self.command.id, 'name': 'Better Task', 'description': 'For the better task', 'award': 'Silver Medal'},
             format='json'
         )
@@ -559,7 +559,7 @@ class TestAwardView(APITestCase):
 
     def test_update_award_unauthenticated(self):
         response = self.client.put(
-            f'/award/{self.award.id}/update/',
+            f'/api/v1/award/{self.award.id}/update/',
             {'task': self.task.id, 'command': self.command.id, 'name': 'Better Task', 'description': 'For the better task', 'award': 'Silver Medal'},
             format='json'
         )
@@ -568,7 +568,7 @@ class TestAwardView(APITestCase):
     def test_update_award_non_existent(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.put(
-            '/award/999/update/',
+            '/api/v1/award/999/update/',
             {'task': self.task.id, 'command': self.command.id, 'name': 'Better Task', 'description': 'For the better task', 'award': 'Silver Medal'},
             format='json'
         )
@@ -579,7 +579,7 @@ class TestAwardView(APITestCase):
     def test_delete_award_successfully(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.delete(
-            f'/award/{self.award.id}/delete/',
+            f'/api/v1/award/{self.award.id}/delete/',
             format='json'
         )
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -588,7 +588,7 @@ class TestAwardView(APITestCase):
 
     def test_delete_award_unauthenticated(self):
         response = self.client.delete(
-            f'/award/{self.award.id}/delete/',
+            f'/api/v1/award/{self.award.id}/delete/',
             format='json'
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -596,7 +596,7 @@ class TestAwardView(APITestCase):
     def test_delete_award_non_existent(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.delete(
-            '/award/999/delete/',
+            '/api/v1/award/999/delete/',
             format='json'
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -606,7 +606,7 @@ class TestAwardView(APITestCase):
     def test_list_awards_successfully(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.get(
-            '/award/list/',
+            '/api/v1/award/list/',
             format='json'
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -615,7 +615,7 @@ class TestAwardView(APITestCase):
 
     def test_list_awards_unauthenticated(self):
         response = self.client.get(
-            '/award/list/',
+            '/api/v1/award/list/',
             format='json'
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -631,7 +631,7 @@ class TestTaskView(APITestCase):
     def test_create_task_successfully(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.post(
-            '/task/create/',
+            '/api/v1/task/create/',
             {'task_name': 'Test task', 'task_description': 'Test description', 'contest': self.contest.id, 'tags': [self.tag.id]},
             format='json'
         )
@@ -640,7 +640,7 @@ class TestTaskView(APITestCase):
 
     def test_create_task_unauthenticated(self):
         response = self.client.post(
-            '/task/create/',
+            '/api/v1/task/create/',
             {'name': 'Test task', 'description': 'Test description', 'contest': self.contest.id, 'tags': [self.tag.id]},
             format='json'
         )
@@ -649,7 +649,7 @@ class TestTaskView(APITestCase):
     def test_create_task_with_invalid_contest(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.post(
-            '/task/create/',
+            '/api/v1/task/create/',
             {'name': 'Test task', 'description': 'Test description', 'contest': 999, 'tags': [self.tag.id]},
             format='json'
         )
@@ -658,7 +658,7 @@ class TestTaskView(APITestCase):
     def test_create_task_with_invalid_tag(self):
         self.client.login(username='testuser', password='testpassword')
         response = self.client.post(
-            '/task/create/',
+            '/api/v1/task/create/',
             {'name': 'Test task', 'description': 'Test description', 'contest': self.contest.id, 'tags': [999]},
             format='json'
         )
@@ -669,7 +669,7 @@ class TestTaskView(APITestCase):
         self.client.login(username='testuser', password='testpassword')
         task = Task.objects.create(task_name='Old task', contest=self.contest)
         response = self.client.put(
-            f'/task/{task.id}/update/',
+            f'/api/v1/task/{task.id}/update/',
             {'task_name': 'Updated task', 'task_description': 'Updated description', 'contest': self.contest.id, 'tags': [self.tag.id]},
             format='json'
         )
@@ -679,7 +679,7 @@ class TestTaskView(APITestCase):
     def test_update_task_unauthenticated(self):
         task = Task.objects.create(task_name='Old task', contest=self.contest)
         response = self.client.put(
-            f'/task/{task.id}/update/',
+            f'/api/v1/task/{task.id}/update/',
             {'task_name': 'Updated task', 'task_description': 'Updated description', 'contest': self.contest.id, 'tags': [self.tag.id]},
             format='json'
         )
@@ -689,7 +689,7 @@ class TestTaskView(APITestCase):
         self.client.login(username='testuser', password='testpassword')
         task = Task.objects.create(task_name='Task to delete', contest=self.contest)
         response = self.client.delete(
-            f'/task/{task.id}/delete/',
+            f'/api/v1/task/{task.id}/delete/',
             format='json'
         )
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -701,7 +701,7 @@ class TestTaskView(APITestCase):
         Task.objects.create(task_name='Task 1', contest=self.contest)
         Task.objects.create(task_name='Task 2', contest=self.contest)
         response = self.client.get(
-            '/task/list/',
+            '/api/v1/task/list/',
             format='json'
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -721,27 +721,27 @@ class TestInviteViews(APITestCase):
 
     def test_create_invite_successfully(self):
         self.client.login(username='user2', password='pass')
-        response = self.client.post(reverse('create_invite'), {'command': self.command.id}, format='json')
+        response = self.client.post(reverse('api:create_invite'), {'command': self.command.id}, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(Invite.objects.filter(invited=self.user2, command=self.command).exists())
 
     def test_send_invite_successfully(self):
         self.client.login(username='user1', password='pass')
-        response = self.client.post(reverse('send_invite'), {'command': self.command.id, 'invited': self.user2.id}, format='json')
+        response = self.client.post(reverse('api:send_invite'), {'command': self.command.id, 'invited': self.user2.id}, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(Invite.objects.filter(invited=self.user2, command=self.command).exists())
 
     def test_list_invites_successfully(self):
         self.client.login(username='user2', password='pass')
         Invite.objects.create(command=self.command, inviter=self.user1, invited=self.user2, status=Invite.Status.CREATED)
-        response = self.client.get(reverse('list_invite'))
+        response = self.client.get(reverse('api:list_invite'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_list_applications_successfully(self):
         self.client.login(username='user1', password='pass')
         Invite.objects.create(command=self.command, inviter=self.user1, invited=self.user2, status=Invite.Status.CREATED)
-        response = self.client.get(reverse('list_application'))
+        response = self.client.get(reverse('api:list_application'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
@@ -749,7 +749,7 @@ class TestInviteViews(APITestCase):
         self.client.login(username='user1', password='pass')
         invite = Invite.objects.create(command=self.command, inviter=self.user1, invited=self.user2,
                                        status=Invite.Status.CREATED)
-        response = self.client.post(reverse('accept_decline_application'), {'invite': invite.id, 'accept': True},
+        response = self.client.post(reverse('api:accept_decline_application'), {'invite': invite.id, 'accept': True},
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         invite.refresh_from_db()
@@ -759,7 +759,7 @@ class TestInviteViews(APITestCase):
         self.client.login(username='user1', password='pass')
         invite = Invite.objects.create(command=self.command, inviter=self.user1, invited=self.user2,
                                        status=Invite.Status.CREATED)
-        response = self.client.post(reverse('accept_decline_application'), {'invite': invite.id, 'accept': False},
+        response = self.client.post(reverse('api:accept_decline_application'), {'invite': invite.id, 'accept': False},
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         invite.refresh_from_db()
@@ -769,7 +769,7 @@ class TestInviteViews(APITestCase):
         self.client.login(username='user2', password='pass')
         invite = Invite.objects.create(command=self.command, inviter=self.user1, invited=self.user2,
                                        status=Invite.Status.CREATED)
-        response = self.client.post(reverse('accept_decline_invite'), {'invite': invite.id, 'accept': True},
+        response = self.client.post(reverse('api:accept_decline_invite'), {'invite': invite.id, 'accept': True},
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         invite.refresh_from_db()
@@ -779,7 +779,7 @@ class TestInviteViews(APITestCase):
         self.client.login(username='user2', password='pass')
         invite = Invite.objects.create(command=self.command, inviter=self.user1, invited=self.user2,
                                        status=Invite.Status.CREATED)
-        response = self.client.post(reverse('accept_decline_invite'), {'invite': invite.id, 'accept': False},
+        response = self.client.post(reverse('api:accept_decline_invite'), {'invite': invite.id, 'accept': False},
                                     format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         invite.refresh_from_db()

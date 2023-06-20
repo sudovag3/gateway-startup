@@ -29,7 +29,8 @@ from django.shortcuts import render
 from django.http import *
 
 from .enums.user_contest_type import UserContestType
-from .forms import TestForm, SendSolutionValidationForm, SetContestAdminValidationForm, SetParticipantValidationForm
+from .forms import TestForm, SendSolutionValidationForm, SetContestAdminValidationForm, SetParticipantValidationForm, \
+    ContestForm
 # from .bot.start import start_bot
 
 import asyncio
@@ -514,3 +515,77 @@ class RemoveParticipantView(APIView):
         command.participants.remove(user)
 
         return Response({"message": "User successfully removed from the command"}, status=status.HTTP_200_OK)
+
+
+@login_required
+def home(request):
+    queryset = Contest.objects.all()
+    context = {
+        'queryset': queryset
+    }
+    return render(request, 'front/index.html', context)
+
+
+@login_required
+def home_creator(request):
+    queryset = Contest.objects.filter(Q(contest_admins__id=request.user.id) | Q(owner=request.user))
+    active = queryset.filter(reg_start__lte=timezone.now(), date_end__gte=timezone.now())
+    context = {
+        'active': active,
+        'all': queryset
+    }
+    return render(request, 'front/creator/home.html', context)
+
+#TODO
+@login_required
+def home_participant(request):
+    queryset = Contest.objects.filter(reg_start__lte=timezone.now(), date_end__gte=timezone.now())
+    active = queryset.filter(participants__id=request.user.id)
+    context = {
+        'active': active,
+        'all': queryset
+    }
+    return render(request, 'front/participant/home.html', context)
+
+#TODO
+@login_required
+def contest_create(request):
+    form = ContestForm()
+    context = {
+        'form': form
+    }
+    return render(request, 'front/index.html', context)
+
+
+#Декоратор, без которого, неавторизованного пользователя попросят войти в систему
+@login_required
+def contest_front_detail(request, contest_id):
+    '''
+
+    :param request: Это обязательный параметр в любой вьюхе, там хранятся данные запроса и пользователя
+    :param contest_id: Параметр, который указывается в Query параметрах (смотри urls.py)
+    :return:
+    '''
+
+    #Получаем объект из БД
+    contest = get_object_or_404(Contest, id=contest_id)
+
+    #Создаём форму для дальнейшего отображения на фронте
+    form = ContestForm(instance=contest)
+
+    #Данным контекстом мы будем пользоваться на фронте
+    context = {
+        'contest': contest,
+        'form': form,
+        'participant': False
+    }
+
+    #Здесь мы фильтруем БД с целью понять, какое отношение пользователь имеет к выбранному хакатону
+    #Участник или Владелец. В зависимости от этого возвращаем соответсвующий html
+    if Contest.objects.filter(id=contest_id).filter(Q(contest_admins__id=request.user.id) | Q(owner=request.user)).exists():
+        return render(request, 'front/creator/contest_detail.html', context)
+    elif Contest.objects.filter(id=contest_id).filter(participants__id=request.user.id).exists():
+        context["participant"] = True
+
+    return render(request, 'front/participant/contest_detail.html', context)
+

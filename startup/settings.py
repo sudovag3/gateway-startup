@@ -27,8 +27,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+
 AUTH_USER_MODEL = 'gateway.User'
 
+CRISPY_TEMPLATE_PACK = 'bootstrap4'
 # Application definition
 
 INSTALLED_APPS = [
@@ -40,7 +42,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'gateway',
     'rest_framework',
-    'drf_yasg'
+    'drf_yasg',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'crispy_forms',
+    'crispy_bootstrap4',
+
 ]
 
 MIDDLEWARE = [

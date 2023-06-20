@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+
+{% block breadcrumb %}
+        <li class="breadcrumb-item active" aria-current="page">На чьей стороне ты?</li>
+{% endblock breadcrumb %}
+
+{% block content %}
+<a role="button" class="btn btn-primary btn-lg btn-block" href="{% url 'home-participant' %}">Я участник !</a>
+<a role="button" class="btn btn-secondary btn-lg btn-block" href="{% url 'home-creator' %}">Я организатор !</a>
+{% endblock content %}

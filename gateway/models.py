@@ -1,6 +1,7 @@
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.db import models
 from django.contrib.auth.models import AbstractUser, PermissionsMixin
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
@@ -114,7 +115,7 @@ class Contest(models.Model):
     )
 
     logo = models.CharField(
-        max_length=50,
+        max_length=300,
         blank=True,
         null=True
     )
@@ -174,6 +175,11 @@ class Contest(models.Model):
         related_name='contests_admin',
         blank=True
     )
+
+    def get_absolute_url(self):
+        return reverse('contest-detail', kwargs={
+            'contest_id': self.id,
+        })
 
 
 class Subscribe(models.Model):
@@ -265,7 +271,7 @@ class Task(models.Model):
     )
 
     task_name = models.CharField(
-        max_length=200,
+        max_length=500,
         blank=True,
         null=True
     )

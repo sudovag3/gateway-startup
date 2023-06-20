@@ -5,12 +5,7 @@ from drf_yasg import openapi
 from rest_framework import permissions
 
 from gateway import views
-from gateway.views import contest_detail, CreateContestAPIView, UpdateContestAPIView, ListContestAPIView, \
-    ListSubscribeAPIView, ListMySubscribeAPIView, buy_rate, CreateCommandAPIView, UpdateCommandAPIView, \
-    ListCommandAPIView, GetCommandAPIView, SendSolutionAPIView, SetContestAdminAPIView, SetParticipantAPIView, \
-    CreateReviewAPIView, AwardCreateView, AwardUpdateView, AwardDeleteView, AwardListView, TaskCreateView, \
-    TaskUpdateView, TaskDeleteView, TaskListView, CreateInviteView, SendInviteView, InviteListView, ApplicationListView, \
-    AcceptDeclineApplicationView, AcceptDeclineInviteView, RemoveParticipantView
+from gateway.views import home, home_creator, home_participant, contest_create, contest_front_detail
 
 schema_view = get_schema_view(
    openapi.Info(
@@ -25,53 +20,19 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/v1/', include('gateway.urls', namespace='api')),
+    path('accounts/', include('allauth.urls')),
 
-    #Contest
-    path('contest/detail/', contest_detail),
-    path('contest/create/', CreateContestAPIView.as_view()),
-    path('contest/update/<int:pk>/', UpdateContestAPIView.as_view()),
-    path('contest/list/', ListContestAPIView.as_view()),
-    path('contest/set_admin/', SetContestAdminAPIView.as_view()),
-    path('contest/set_participant/', SetParticipantAPIView.as_view()),
+    #Front
+    path('', home),
 
-    #Rate
-    path('rate/all/', ListSubscribeAPIView.as_view()),
-    path('rate/my/', ListMySubscribeAPIView.as_view()),
-    path('rate/buy/<int:sub_id>', buy_rate),
+    #Добавляем новый рут и прокидываем наш созданный view
+    path('contest/detail/<contest_id>', contest_front_detail, name='contest-detail'),
 
-    #Command
-    path('command/create/', CreateCommandAPIView.as_view()),
-    path('command/update/<int:pk>/', UpdateCommandAPIView.as_view()),
-    path('command/list/', ListCommandAPIView.as_view()),
-    path('command/get/<int:pk>', GetCommandAPIView.as_view()),
-    path('command/remove/', RemoveParticipantView.as_view()),
+    path('creator/', home_creator, name='home-creator'),
+    path('creator/contest/create', contest_create, name='contest-create'),
 
-    #Solution
-    path('solution/send', SendSolutionAPIView.as_view()),
-
-    #Review
-    path('review/send/', CreateReviewAPIView.as_view()),
-
-    #Award
-    path('award/create/', AwardCreateView.as_view(), name='create_award'),
-    path('award/<pk>/update/', AwardUpdateView.as_view(), name='update_award'),
-    path('award/<pk>/delete/', AwardDeleteView.as_view(), name='delete_award'),
-    path('award/list/', AwardListView.as_view(), name='list_award'),
-
-    #Task
-    path('task/create/', TaskCreateView.as_view(), name='create_task'),
-    path('task/<pk>/update/', TaskUpdateView.as_view(), name='update_task'),
-    path('task/<pk>/delete/', TaskDeleteView.as_view(), name='delete_task'),
-    path('task/list/', TaskListView.as_view(), name='list_task'),
-
-    #Invite
-    path('invite/create/', CreateInviteView.as_view(), name='create_invite'),
-    path('invite/send/', SendInviteView.as_view(), name='send_invite'),
-    path('invite/list/', InviteListView.as_view(), name='list_invite'),
-    path('application/list/', ApplicationListView.as_view(), name='list_application'),
-    path('application/accept-decline/', AcceptDeclineApplicationView.as_view(),
-         name='accept_decline_application'),
-    path('invite/accept-decline/', AcceptDeclineInviteView.as_view(), name='accept_decline_invite'),
+    path('participant/', home_participant, name='home-participant'),
 
 
     #Docs

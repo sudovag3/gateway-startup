@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block breadcrumb %}
+        <li class="breadcrumb-item active" aria-current="page">Мероприятия</li>
+{% endblock breadcrumb %}
+
+{% block content %}
+    <hr />
+    <h2>Мои активные мероприятия</h2>
+    <div class="row">
+    {% for active_contest in active %}
+        <div class="card mb-3" style="width: 22rem;">
+        <img class="card-img-top" src="{{ active_contest.logo }}" alt="Card image cap">
+          <div class="card-body">
+            <h5 class="card-title">{{ active_contest.name }}</h5>
+            <h6 class="card-subtitle mb-2 text-muted">{{ active_contest.description }}</h6>
+            <div class="container">
+                {% for tag in active_contest.tags.all %}
+                <span class="badge badge-pill badge-secondary">{{ tag.name }}</span>
+                {% endfor %}
+            </div>
+            <a href="{{ active_contest.get_absolute_url }}" class="btn btn-success m-2">Подробнее</a>
+          </div>
+        </div>
+    {% endfor %}
+    </div>
+    <h2>Все мероприятия</h2>
+    <div class="row">
+    {% for contest in all %}
+        <div class="card mb-3" style="width: 18rem;">
+        <img class="card-img-top" src="{{ contest.logo }}" alt="Card image cap">
+          <div class="card-body">
+            <h5 class="card-title">{{ contest.name }}</h5>
+            <h6 class="card-subtitle mb-2 text-muted">{{ contest.description }}</h6>
+            <div class="container">
+                {% for tag in contest.tags.all %}
+                <span class="badge badge-pill badge-secondary">{{ tag.name }}</span>
+                {% endfor %}
+            </div>
+            <a href="{{ contest.get_absolute_url }}" class="btn btn-primary m-2">Подробнее</a>
+          </div>
+        </div>
+    {% endfor %}
+    </div>
+{% endblock content %}
