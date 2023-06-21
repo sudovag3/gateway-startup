@@ -21,7 +21,7 @@ schema_view = get_schema_view(
 urlpatterns = [
     #Contest
     path('contest/detail/', contest_detail),
-    path('contest/create/', CreateContestAPIView.as_view()),
+    path('contest/create/', CreateContestAPIView.as_view(), name='contest-create'),
     path('contest/update/<int:pk>/', UpdateContestAPIView.as_view(), name='contest-update'),
     path('contest/list/', ListContestAPIView.as_view()),
     path('contest/set_admin/', SetContestAdminAPIView.as_view()),
@@ -34,10 +34,12 @@ urlpatterns = [
 
     #Command
     path('command/create/', CreateCommandAPIView.as_view()),
-    path('command/update/<int:pk>/', UpdateCommandAPIView.as_view()),
+    path('command/update/<int:pk>/', UpdateCommandAPIView.as_view(), name='update-command'),
     path('command/list/', ListCommandAPIView.as_view()),
     path('command/get/<int:pk>', GetCommandAPIView.as_view()),
-    path('command/remove/', RemoveParticipantView.as_view()),
+    path('command/delete/<int:pk>', DeleteCommandAPIView.as_view(), name='delete-command'),
+    path('command/leave/', LeaveFromCommandView.as_view(), name='leave-from-command'),
+    path('command/remove/', RemoveParticipantView.as_view(), name='remove-participant'),
 
     #Solution
     path('solution/send', SendSolutionAPIView.as_view()),

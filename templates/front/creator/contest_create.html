@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <form id="myForm" action="{% url 'api:contest-create' %}">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="button" id="submitBtn" class="btn btn-primary">Сохранить</button>
+    </form>
+
+    <script>
+    $('#submitBtn').click(function(e) {
+        e.preventDefault();
+        var form = $('#myForm');
+        var url = form.attr('action');
+        $.ajax({
+            headers: { "X-CSRFToken": '{{ csrf_token }}' },
+            url: url,
+            data: form.serialize(),
+            type: 'POST',
+            success: function(response) {
+                window.location.href = '{% url "home-creator" %}';
+            },
+            error: function(error){
+                console.log(error);
+            }
+        });
+    });
+    </script>
+{% endblock content %}

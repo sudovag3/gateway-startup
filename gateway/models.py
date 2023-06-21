@@ -181,6 +181,9 @@ class Contest(models.Model):
             'contest_id': self.id,
         })
 
+    def __str__(self):
+        return self.name
+
 
 class Subscribe(models.Model):
     name = models.CharField(
@@ -259,6 +262,8 @@ class Award(models.Model):
         auto_now=True
     )
 
+    def __str__(self):
+        return self.name
 
 class Task(models.Model):
 
@@ -293,6 +298,9 @@ class Task(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True
     )
+
+    def __str__(self):
+        return self.task_name
 
 
 class Command(models.Model):
@@ -339,6 +347,10 @@ class Command(models.Model):
     tags = models.ManyToManyField(
         'Tag'
     )
+
+    def __str__(self):
+        return f"{self.command_name} - ({self.admin.username})"
+
 
 
 class Solution(models.Model):
@@ -424,6 +436,8 @@ class Tag(models.Model):
         max_length=100
     )
 
+    def __str__(self):
+        return self.name
 
 class Review(models.Model):
     comment = models.CharField(

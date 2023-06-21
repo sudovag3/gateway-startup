@@ -40,12 +40,14 @@ class ContestCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contest
         fields = '__all__'
+        read_only_fields = ['status', 'owner']
 
 
 class ContestUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contest
         fields = '__all__'
+        read_only_fields = ['status', 'owner']
 
 
 class ContestParticipantSerializer(serializers.ModelSerializer):

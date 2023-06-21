@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'crispy_forms',
     'crispy_bootstrap4',
+    'bootstrap_datepicker_plus',
 
 ]
 
@@ -85,6 +86,26 @@ WSGI_APPLICATION = 'startup.wsgi.application'
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema'
 }
+
+#
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# SENDINBLUE_API_KEY = '6FTbjNDQKsHtOgpd'
+# EMAIL_HOST = 'smtp-relay.sendinblue.com'
+# EMAIL_PORT = 587
+# EMAIL_HOST_USER = 'sudov.andrey@gmail.com'
+# EMAIL_HOST_PASSWORD = SENDINBLUE_API_KEY
+# EMAIL_USE_TLS = True
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+ps = 'nhsomfoyednvuuvm'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'sudov.andrey@gmail.com'
+EMAIL_HOST_PASSWORD = 'nhsomfoyednvuuvm'
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -139,6 +160,8 @@ TIME_ZONE = 'Europe/Moscow'
 USE_I18N = True
 
 USE_TZ = True
+
+LOGIN_REDIRECT_URL = '/'
 
 
 # Static files (CSS, JavaScript, Images)

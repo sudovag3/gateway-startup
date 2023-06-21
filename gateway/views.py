@@ -3,7 +3,6 @@ import json
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
 
-
 # Create your views here.
 
 # Contest
@@ -16,7 +15,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from gateway.models import Contest, Subscribe, Command, Solution, User, Award, Task, Invite
+from gateway.models import Contest, Subscribe, Command, Solution, User, Award, Task, Invite, Review
 from django.db.models import Q
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -30,7 +29,7 @@ from django.http import *
 
 from .enums.user_contest_type import UserContestType
 from .forms import TestForm, SendSolutionValidationForm, SetContestAdminValidationForm, SetParticipantValidationForm, \
-    ContestForm
+    ContestForm, TaskForm, AwardForm, CommandForm
 # from .bot.start import start_bot
 
 import asyncio
@@ -92,6 +91,17 @@ class CreateContestAPIView(CreateAPIView):
     serializer_class = ContestCreateSerializer
     permission_classes = [IsAuthenticated]
 
+    def perform_create(self, serializer):
+        serializer.save(
+            owner=self.request.user,
+            status=Contest.Status.CREATED
+        )
+    #
+    # def create(self, validated_data):
+    #     validated_data['owner'] = self.request.user
+    #     validated_data['status'] = Contest.Status.CREATED
+    #     return super().create(validated_data)
+
 
 class UpdateContestAPIView(UpdateAPIView):
     serializer_class = ContestUpdateSerializer
@@ -110,7 +120,7 @@ class ListMySubscribeAPIView(ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Subscribe.objects.filter(id = self.request.user.subscribe.id)
+        return Subscribe.objects.filter(id=self.request.user.subscribe.id)
 
 
 def buy_rate(request, sub_id):
@@ -146,6 +156,49 @@ class UpdateCommandAPIView(UpdateAPIView):
     queryset = Command.objects.all()
 
 
+class DeleteCommandAPIView(DestroyAPIView):
+    serializer_class = CommandCreateSerializer
+    permission_classes = [IsAuthenticated, CommandIsOwnedByMe]
+    queryset = Command.objects.all()
+
+
+class LeaveFromCommandView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_description="Leave from a command",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'command_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='Command id'),
+            },
+        ),
+        responses={
+            200: "User successfully left the command",
+            400: "Invalid request / Registration period is not active / User is not a participant in this command",
+            403: "Only participants can leave the command",
+        },
+    )
+    def post(self, request):
+        command_id = request.data.get('command_id')
+
+        command = get_object_or_404(Command, id=command_id)
+
+        # Проверяем, что текущий пользователь является участником команды
+        if request.user not in command.participants.all():
+            return Response({"error": "Only participants can leave the command"},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        # Проверяем, что регистрационный период активен
+        if not command.contest.reg_start <= timezone.now() <= command.contest.reg_end:
+            return Response({"error": "You can only leave the command during the registration period"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        command.participants.remove(request.user)
+
+        return Response({"message": "User successfully left the command"}, status=status.HTTP_200_OK)
+
+
 class ListCommandAPIView(ListAPIView):
     serializer_class = CommandListSerializer
     permission_classes = [IsAuthenticated]
@@ -174,7 +227,6 @@ class GetCommandAPIView(RetrieveAPIView):
 
 
 class SendSolutionAPIView(APIView):
-
     permission_classes = (IsAuthenticated, IsSolutionIsCorrect)
 
     def post(self, request):
@@ -183,7 +235,7 @@ class SendSolutionAPIView(APIView):
             solution_url = form.cleaned_data['solution_url']
             command_id = form.cleaned_data['command_id']
 
-            command = Command.objects.filter(id = command_id).first()
+            command = Command.objects.filter(id=command_id).first()
             sol, created = Solution.objects.get_or_create(
                 command_id=command_id,
                 url=solution_url,
@@ -199,7 +251,6 @@ class SendSolutionAPIView(APIView):
 
 
 class SetContestAdminAPIView(APIView):
-
     permission_classes = (IsAuthenticated, SetContestAdminApprove)
 
     def post(self, request):
@@ -208,19 +259,18 @@ class SetContestAdminAPIView(APIView):
             participant_id = form.cleaned_data['participant_id']
             contest_id = form.cleaned_data['contest_id']
 
-            participant = User.objects.filter(id = participant_id)
-            contest = Contest.objects.filter(id = contest_id, participants__in=participant).first()
+            participant = User.objects.filter(id=participant_id)
+            contest = Contest.objects.filter(id=contest_id, participants__in=participant).first()
 
             contest.contest_admins.set(participant)
 
-            return Response({"success" : True}, status=status.HTTP_200_OK)
+            return Response({"success": True}, status=status.HTTP_200_OK)
         else:
             errors = form.errors.as_json()
             return Response({'success': False, 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SetParticipantAPIView(APIView):
-
     permission_classes = (IsAuthenticated, IsRequestInRegTime)
 
     def post(self, request):
@@ -231,11 +281,11 @@ class SetParticipantAPIView(APIView):
             contest_id = form.cleaned_data['contest_id']
 
             participant = request.user
-            contest = Contest.objects.filter(id = contest_id).first()
+            contest = Contest.objects.filter(id=contest_id).first()
 
             contest.participants.add(participant)
 
-            return Response({"success" : True}, status=status.HTTP_200_OK)
+            return Response({"success": True}, status=status.HTTP_200_OK)
         else:
             errors = form.errors.as_json()
             return Response({'success': False, 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -317,7 +367,8 @@ class CreateInviteView(APIView):
         command = get_object_or_404(Command, id=command_id)
         contest = command.contest
         current_user = request.user
-        invite_exists = Invite.objects.filter(command=command, invited=current_user, status=Invite.Status.CREATED).exists()
+        invite_exists = Invite.objects.filter(command=command, invited=current_user,
+                                              status=Invite.Status.CREATED).exists()
 
         other_commands = Command.objects.filter(contest=contest, participants__in=[current_user])
         if other_commands.exists():
@@ -337,6 +388,7 @@ class CreateInviteView(APIView):
             return Response({"message": "Invite successfully created"}, status=status.HTTP_201_CREATED)
 
         return Response({"error": "Invite could not be created"}, status=status.HTTP_400_BAD_REQUEST)
+
 
 # Отправление пользователю приглашения от команды
 class SendInviteView(APIView):
@@ -381,6 +433,7 @@ class SendInviteView(APIView):
 
         return Response({"error": "Invite could not be sent"}, status=status.HTTP_400_BAD_REQUEST)
 
+
 # Просмотр списка приглашений
 class InviteListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -394,6 +447,7 @@ class InviteListView(APIView):
         serializer = InviteSerializer(invites, many=True)
         return Response(serializer.data)
 
+
 # Просмотр списка заявок
 class ApplicationListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -406,6 +460,7 @@ class ApplicationListView(APIView):
         applications = Invite.objects.filter(inviter=request.user)
         serializer = InviteSerializer(applications, many=True)
         return Response(serializer.data)
+
 
 # Принять/отклонить запрос на вступление в команду
 class AcceptDeclineApplicationView(APIView):
@@ -438,6 +493,7 @@ class AcceptDeclineApplicationView(APIView):
             return Response({"message": "Invite successfully updated"}, status=status.HTTP_200_OK)
 
         return Response({"error": "Invite could not be updated"}, status=status.HTTP_400_BAD_REQUEST)
+
 
 # Принять/отклонить приглашение в команду
 class AcceptDeclineInviteView(APIView):
@@ -536,7 +592,8 @@ def home_creator(request):
     }
     return render(request, 'front/creator/home.html', context)
 
-#TODO
+
+# TODO
 @login_required
 def home_participant(request):
     queryset = Contest.objects.filter(reg_start__lte=timezone.now(), date_end__gte=timezone.now())
@@ -547,18 +604,17 @@ def home_participant(request):
     }
     return render(request, 'front/participant/home.html', context)
 
-#TODO
+
+# TODO
 @login_required
 def contest_create(request):
     form = ContestForm()
     context = {
         'form': form
     }
-    return render(request, 'front/index.html', context)
+    return render(request, 'front/creator/contest_create.html', context)
 
 
-#Декоратор, без которого, неавторизованного пользователя попросят войти в систему
-@login_required
 def contest_front_detail(request, contest_id):
     '''
 
@@ -567,25 +623,45 @@ def contest_front_detail(request, contest_id):
     :return:
     '''
 
-    #Получаем объект из БД
+    # Получаем объект из БД
     contest = get_object_or_404(Contest, id=contest_id)
 
-    #Создаём форму для дальнейшего отображения на фронте
-    form = ContestForm(instance=contest)
+    # Создаём форму для дальнейшего отображения на фронте
+    contest_form = ContestForm(instance=contest)
 
-    #Данным контекстом мы будем пользоваться на фронте
+    # Данным контекстом мы будем пользоваться на фронте
     context = {
         'contest': contest,
-        'form': form,
-        'participant': False
+        'contest_form': contest_form,
+        'task_form': TaskForm(contest=contest),
+        'award_form': AwardForm(contest=contest),
+        'participant': False,
+        "tasks": Task.objects.filter(contest=contest),
+        "awards": Award.objects.filter(task__contest=contest)
     }
 
-    #Здесь мы фильтруем БД с целью понять, какое отношение пользователь имеет к выбранному хакатону
-    #Участник или Владелец. В зависимости от этого возвращаем соответсвующий html
-    if Contest.objects.filter(id=contest_id).filter(Q(contest_admins__id=request.user.id) | Q(owner=request.user)).exists():
-        return render(request, 'front/creator/contest_detail.html', context)
-    elif Contest.objects.filter(id=contest_id).filter(participants__id=request.user.id).exists():
-        context["participant"] = True
+    if request.user.is_authenticated:
+        context["is_authenticated"] = True
+        # Здесь мы фильтруем БД с целью понять, какое отношение пользователь имеет к выбранному хакатону
+        # Участник или Владелец. В зависимости от этого возвращаем соответсвующий html
+        if Contest.objects.filter(id=contest_id).filter(
+                Q(contest_admins__id=request.user.id) | Q(owner=request.user)).exists():
+            context["solutions"] = Solution.objects.filter(task__contest=contest)
+            context["reviews"] = Review.objects.filter(command__contest=contest)
+            return render(request, 'front/creator/contest_detail.html', context)
+
+        elif Contest.objects.filter(id=contest_id).filter(participants__id=request.user.id).exists():
+            context["participant"] = True
+            commands_participant = Command.objects.filter(contest_id=contest_id).filter(
+                Q(participants__id=request.user.id) | Q(admin=request.user.id))
+            if commands_participant.exists():
+                context["command"] = commands_participant.first()
+                context["command_form"] = CommandForm(instance=commands_participant.first())
+                if commands_participant.first().admin == request.user:
+                    context["command_admin"] = True
+
+
+    else:
+        context["is_authenticated"] = False
 
     return render(request, 'front/participant/contest_detail.html', context)
-

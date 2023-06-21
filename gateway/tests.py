@@ -214,6 +214,79 @@ class UpdateCommandPermissionAPITestCase(TestCase):
         response = self.client.put(f'/api/v1/command/update/{self.command.id}/', new_data, format='json')
         self.assertEqual(response.status_code, 403)
 
+class LeaveFromCommandAPITestCase(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpassword')
+        self.admin_user = User.objects.create_user(username='testadmin', password='testpassword')
+        self.contest = create_test_contest(10, self.admin_user)
+        self.command = create_test_command(contest=self.contest, admin=self.admin_user)
+        self.command.participants.add(self.user)
+        self.leave_url = reverse('api:leave-from-command')
+
+    def test_leave_from_command(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(self.leave_url, data={'command_id': self.command.id})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['message'], 'User successfully left the command')
+        self.assertNotIn(self.user, self.command.participants.all())
+
+    def test_leave_from_command_unauthenticated(self):
+        response = self.client.post(self.leave_url, data={'command_id': self.command.id})
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_leave_from_command_non_participant(self):
+        another_user = User.objects.create_user(username='anotheruser', password='testpassword')
+        self.client.force_authenticate(user=another_user)
+
+        response = self.client.post(self.leave_url, data={'command_id': self.command.id})
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('Only participants can leave the command', response.data['error'])
+
+    def test_leave_from_command_outside_registration_period(self):
+        self.client.force_authenticate(user=self.user)
+
+        # Change the registration period to be inactive
+        self.command.contest.reg_start = self.command.contest.reg_end
+        self.command.contest.save()
+
+        response = self.client.post(self.leave_url, data={'command_id': self.command.id})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('You can only leave the command during the registration period', response.data['error'])
+
+
+class DeleteCommandAPITestCase(APITestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_user(username='testadmin', password='testpassword')
+        self.contest = create_test_contest(10, self.admin_user)
+        self.command = create_test_command(contest=self.contest, admin=self.admin_user)
+        self.participant = User.objects.create_user(username='participantuser', password='testpassword')
+        self.command.participants.add(self.participant)
+        self.remove_url = reverse('api:delete-command', kwargs={'pk': self.command.id})
+
+    def test_delete_command(self):
+        self.client.force_authenticate(user=self.admin_user)
+
+        response = self.client.delete(self.remove_url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertNotIn(self.participant, self.command.participants.all())
+
+    def test_delete_command_unauthenticated(self):
+        response = self.client.delete(self.remove_url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_delete_command_non_admin(self):
+        self.client.force_authenticate(user=self.participant)
+
+        response = self.client.delete(self.remove_url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 class CreateCommandAPITestCase(TestCase):
     def setUp(self):

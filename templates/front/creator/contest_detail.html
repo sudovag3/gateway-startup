@@ -1,15 +1,123 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <form id="myForm" action="{% url 'api:contest-update' contest.id %}">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="button" id="submitBtn" class="btn btn-primary">Сохранить</button>
-    </form>
-    <script>
-    $('#submitBtn').click(function(e) {
+{{ contest_form.media }}
+{{ task_form.media }}
+{{ award_form.media }}
+
+<div class="card">
+    <h2 class="m-2">Редактирование Соревнования</h2>
+    <hr />
+    <div class="card-body">
+        <form id="contestForm" action="{% url 'api:contest-update' contest.id %}">
+        <div class="card"><div class="card-body">
+            <h3>Ссылка на данное мероприятие</h3>
+            <a href="{% url 'contest-detail' contest.id %}">{% url 'contest-detail' contest.id %}</a>
+        </div></div>
+        {% csrf_token %}
+        {{ contest_form.as_p }}
+        <button type="button" id="contestSubmitBtn" class="btn btn-primary">Сохранить</button>
+        </form>
+    </div>
+</div>
+
+<div class="card" id="tasksContainer">
+    <h2 class="m-2">Редактирование Задач</h2>
+    <hr />
+    <div class="card-body">
+        {% for task in tasks %}
+            <div class="card m-3">
+                <div class="card-body">
+                    <div id="task-{{ task.id }}">
+                        <h2>{{ task.task_name }}</h2>
+                        <p>{{ task.task_description }}</p>
+                        <div class="container mb-2">
+                        {% for tag in task.tags.all %}
+                        <span class="badge badge-pill badge-secondary">{{ tag.name }}</span>
+                        {% endfor %}
+                        </div>
+                        <button class="btn btn-secondary edit-task" data-id="{{ task.id }}">Редактировать</button>
+                        <button class="btn btn-danger delete-task" data-id="{{ task.id }}">Удалить</button>
+                    </div>
+                    <div id="editTaskModal-{{ task.id }}" style="display: none;">
+                        <form id="editTaskForm-{{ task.id }}">
+                            {% csrf_token %}
+                            {{ task_form.as_p }}
+                            <button type="button" id="editTaskSubmitBtn-{{ task.id }}" class="btn btn-primary">Сохранить</button>
+                            <i id="editTaskCloseBtn-{{ task.id }}" class="bi bi-x-octagon"></i>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        <button type="button" id="createTaskBtn" class="btn btn-primary">Создать задачу</button>
+
+
+    <div id="createTaskModal" style="display: none;">
+        <form id="createTaskForm" action="{% url 'api:create_task' %}">
+            {% csrf_token %}
+            {{ task_form.as_p }}
+            <button type="button" id="createTaskSubmitBtn" class="btn btn-primary">Создать</button>
+        </form>
+    </div>
+
+{#    <div id="editTaskModal" style="display: none;">#}
+{#        <form id="editTaskForm">#}
+{#            {% csrf_token %}#}
+{#            {{ task_form.as_p }}#}
+{#            <button type="button" id="editTaskSubmitBtn" class="btn btn-primary">Сохранить</button>#}
+{#        </form>#}
+{#    </div>#}
+</div>
+</div>
+
+<div class="card" id="awardsContainer">
+    <h2 class="m-2">Редактирование Наград</h2>
+    <hr />
+    <div class="card-body">
+        {% for award in awards %}
+            <div class="card m-3">
+                <div class="card-body"></div>
+                    <div id="award-{{ award.id }}">
+                        <h2>{{ award.name }}</h2>
+                        <p>{{ award.description }}</p>
+                        <button class="btn btn-secondary edit-award" data-id="{{ award.id }}">Редактировать</button>
+                        <button class="btn btn-danger delete-award" data-id="{{ award.id }}">Удалить</button>
+                    </div>
+                    <div id="editAwardModal-{{ award.id }}" style="display: none;">
+                        <form id="editAwardForm-{{ award.id }}">
+                            <i id="editAwardCloseBtn-{{ award.id }}" class="bi bi-x-octagon"></i>
+                            {% csrf_token %}
+                            {{ award_form.as_p }}
+                            <button type="button" id="editAwardSubmitBtn-{{ award.id }}" class="btn btn-primary">Сохранить</button>
+                        </form>
+                    </div>
+                </div>
+        {% endfor %}
+        <button id="createAwardBtn" class="btn btn-primary">Создать награду</button>
+
+        <div id="createAwardModal" style="display: none;">
+            <form id="createAwardForm" action="{% url 'api:create_award' %}">
+                {% csrf_token %}
+                {{ award_form.as_p }}
+                <button type="button" id="createAwardSubmitBtn" class="btn btn-primary">Создать</button>
+            </form>
+        </div>
+
+{#            <div id="editAwardModal" style="display: none;">#}
+{#                <form id="editAwardForm">#}
+{#                    {% csrf_token %}#}
+{#                    {{ award_form.as_p }}#}
+{#                    <button type="button" id="editAwardSubmitBtn" class="btn btn-primary">Сохранить</button>#}
+{#                </form>#}
+{#            </div>#}
+        </div>
+    </div>
+</div>
+<script>
+    $('#contestSubmitBtn').click(function(e) {
         e.preventDefault();
-        var form = $('#myForm');
+        var form = $('#contestForm');
         var url = form.attr('action');
         $.ajax({
             headers: { "X-CSRFToken": '{{ csrf_token }}' },
@@ -24,6 +132,144 @@
             }
         });
     });
-    </script>
+</script>
+<script>
+$(document).ready(function() {
+    var csrftoken = $("[name=csrfmiddlewaretoken]").val();
 
+    $(".bi-x-octagon").click(function() {
+        $(this).parents('.modal').hide();
+    });
+    // Обработчики событий для кнопок создания задач и наград
+    $("#createTaskBtn").click(function() {
+        $("#createTaskModal").show();
+    });
+
+    $("#createAwardBtn").click(function() {
+        $("#createAwardModal").show();
+    });
+
+    $("#createTaskSubmitBtn, #createAwardSubmitBtn").click(function(e) {
+        e.preventDefault();
+        var form = $(this).parents('form');
+        var url = form.attr('action');
+        $.ajax({
+            headers: { "X-CSRFToken": csrftoken },
+            url: url,
+            data: form.serialize(),
+            type: 'POST',
+            success: function(response) {
+                console.log(response);
+                $("#" + this.id + "Modal").hide();
+                location.reload();
+            },
+            error: function(error){
+                console.log(error);
+            }
+        });
+    });
+    // Обработчики событий для кнопок редактирования и удаления задач и наград
+
+    $(".edit-task").click(function() {
+
+        var id = $(this).data('id');
+        var form = $("#editTaskForm-" + id);
+        var url = '/api/v1/task/' + id + '/update/';
+
+        form.attr('action', url);
+        $("#editTaskModal-" + id).show();
+    });
+
+
+   $(".edit-award").click(function() {
+        var id = $(this).data('id');
+        var form = $("#editAwardForm-" + id);
+        var url = '/api/v1/award/' + id + '/update/';
+
+        form.attr('action', url);
+        $("#editAwardModal-" + id).show();
+    });
+
+    $(".delete-task, .delete-award").click(function() {
+        var id = $(this).data('id').toString();
+        var url = '';
+        var instance = this.className.includes('delete-task') ? 'task' : 'award'
+        if (this.className.includes('delete-task')) {
+            url = '/api/v1/task/' + id + '/delete/';
+        } else if (this.className.includes('delete-award')) {
+            url = '/api/v1/award/' + id + '/delete/';
+        }
+
+        $.ajax({
+            headers: { "X-CSRFToken": csrftoken },
+            url: url,
+            type: 'DELETE',
+            success: function(response) {
+                //TODO
+                location.reload();
+                $("#" + instance + "-" + id).remove();
+            },
+            error: function(error){
+                console.log(error);
+            }
+        });
+    });
+
+    $("[id^='editTaskSubmitBtn-']").click(function(e) {
+        e.preventDefault();
+        var id = $(this).attr('id').split('-')[1];
+        var form = $("#editTaskForm-" + id);
+        var url = form.attr('action');
+
+        $.ajax({
+            headers: { "X-CSRFToken": '{{ csrf_token }}' },
+            url: url,
+            data: form.serialize(),
+            type: 'PUT',
+            success: function(response) {
+                location.reload();
+            },
+            error: function(error){
+                console.log(error);
+            }
+        });
+    });
+
+    $("[id^='editAwardSubmitBtn-']").click(function(e) {
+        e.preventDefault();
+        var id = $(this).attr('id').split('-')[1];
+        var form = $("#editAwardForm-" + id);
+        var url = form.attr('action');
+
+        $.ajax({
+            headers: { "X-CSRFToken": '{{ csrf_token }}' },
+            url: url,
+            data: form.serialize(),
+            type: 'PUT',
+            success: function(response) {
+                location.reload();
+            },
+            error: function(error){
+                console.log(error);
+            }
+        });
+    });
+});
+
+
+</script>
 {% endblock content %}
+{##}
+{##}
+{##}
+{#{% extends 'base.html' %}#}
+{##}
+{#{% block content %}#}
+{#    <form id="myForm" action="{% url 'api:contest-update' contest.id %}">#}
+{#    {% csrf_token %}#}
+{#    {{ form.as_p }}#}
+{#    <button type="button" id="submitBtn" class="btn btn-primary">Сохранить</button>#}
+{#    </form>#}
+{##}
+{##}
+{#{% endblock content %}#}
