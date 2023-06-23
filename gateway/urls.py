@@ -33,13 +33,19 @@ urlpatterns = [
     path('rate/buy/<int:sub_id>', buy_rate),
 
     #Command
-    path('command/create/', CreateCommandAPIView.as_view()),
+    path('command/create/', CreateCommandAPIView.as_view(), name='create-command'),
     path('command/update/<int:pk>/', UpdateCommandAPIView.as_view(), name='update-command'),
     path('command/list/', ListCommandAPIView.as_view()),
     path('command/get/<int:pk>', GetCommandAPIView.as_view()),
     path('command/delete/<int:pk>', DeleteCommandAPIView.as_view(), name='delete-command'),
     path('command/leave/', LeaveFromCommandView.as_view(), name='leave-from-command'),
     path('command/remove/', RemoveParticipantView.as_view(), name='remove-participant'),
+
+
+    #Participant
+    path('command/<int:command_id>/participants/', ParticipantListView.as_view(), name='list_participants'),
+    path('command/search/', SearchCommandsView.as_view(), name='search_commands'),
+
 
     #Solution
     path('solution/send', SendSolutionAPIView.as_view()),

@@ -9,16 +9,25 @@ class TagSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = '__all__'
+
+
 class CommandSerializer(serializers.ModelSerializer):
+    # tags = TagSerializer(read_only=True, many=True)
+    # admin = UserSerializer(many=True)
+    # participant = UserSerializer(many=True)
+    participants = serializers.StringRelatedField(many=True)
+    admin = serializers.StringRelatedField()
+
     class Meta:
         model = Command
         fields = '__all__'
 
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = '__all__'
+
 
 
 class ContestAdminSerializer(serializers.ModelSerializer):
@@ -80,12 +89,12 @@ class CommandCreateSerializer(serializers.ModelSerializer):
             'admin'
         ]
 
-
 class CommandUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Command
         fields = [
             'command_name',
+            'task',
             'open_to_invite'
         ]
 

@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from gateway.models import Contest, Subscribe, Command, Solution, User, Award, Task, Invite, Review
-from django.db.models import Q
+from django.db.models import Q, F, Count
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -40,7 +40,7 @@ from .permissions import ContestIsOwnedByMe, CommandIsOwnedByMe, SolutionIsOwned
 from .serializers import ContestAdminSerializer, ContestParticipantSerializer, ContestCreateSerializer, \
     ContestUpdateSerializer, SubscribeSerializer, CommandListSerializer, CommandUpdateSerializer, \
     CommandCreateSerializer, SolutionListSerializer, ReviewCreateSerializer, AwardSerializer, TaskSerializer, \
-    AwardGetSerializer, TaskGetSerializer, InviteSerializer
+    AwardGetSerializer, TaskGetSerializer, InviteSerializer, UserSerializer, CommandSerializer
 from .utils import type_of_user_contest
 
 
@@ -152,15 +152,48 @@ class CreateCommandAPIView(CreateAPIView):
 
 class UpdateCommandAPIView(UpdateAPIView):
     serializer_class = CommandUpdateSerializer
-    permission_classes = [IsAuthenticated, CommandIsOwnedByMe]
+    permission_classes = [IsAuthenticated, CommandIsOwnedByMe, IsRequestInRegTime]
     queryset = Command.objects.all()
 
 
 class DeleteCommandAPIView(DestroyAPIView):
     serializer_class = CommandCreateSerializer
-    permission_classes = [IsAuthenticated, CommandIsOwnedByMe]
+    permission_classes = [IsAuthenticated, CommandIsOwnedByMe, IsRequestInRegTime]
     queryset = Command.objects.all()
 
+
+class SearchCommandsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        contest_id = request.GET.get('contest_id')
+        contest = get_object_or_404(Contest, id=contest_id)
+
+        # get all the commands where the user is already invited
+        already_invited_commands = Invite.objects.filter(invited=request.user,
+                                                         status=Invite.Status.CREATED).values_list('command', flat=True)
+
+        if contest.command_max is not None:
+            commands = Command.objects.filter(
+                open_to_invite=True,
+                contest=contest
+            ).exclude(
+                id__in=already_invited_commands
+            ).annotate(
+                total_members=Count('participants') + 1  # count participants and add the admin
+            ).filter(
+                total_members__lt=contest.command_max
+            )
+        else:
+            # If contest.command_max is not set, we simply select all teams that are open for invite.
+            commands = Command.objects.filter(
+                open_to_invite=True,
+                contest=contest
+            ).exclude(
+                id__in=already_invited_commands
+            )
+        serializer = CommandSerializer(commands, many=True)
+        return Response(serializer.data)
 
 class LeaveFromCommandView(APIView):
     permission_classes = [IsAuthenticated]
@@ -448,6 +481,34 @@ class InviteListView(APIView):
         return Response(serializer.data)
 
 
+class ParticipantListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, command_id):
+
+        command = get_object_or_404(Command, id=command_id)
+
+        # get all the users who are already invited to this command with status CREATED
+        already_invited_users = list(
+            Invite.objects.filter(status=Invite.Status.CREATED, command=command).values_list('invited', flat=True))
+
+        # get all the participants and admin of this command
+        command_participants_and_admin = list(command.participants.values_list('id', flat=True)) + [command.admin.id]
+
+        # get all users who are part of a team in this contest
+        contest_participant_ids = Command.objects.filter(contest=command.contest).values_list('participants__id',
+                                                                                              flat=True)
+        contest_admin_ids = Command.objects.filter(contest=command.contest).values_list('admin_id', flat=True)
+
+        # get all participants of the contest who have not yet been invited to this command
+        participants = User.objects.filter(Q(contests_participant=command.contest)).exclude(
+            id__in=already_invited_users + command_participants_and_admin + list(contest_participant_ids) + list(
+                contest_admin_ids)
+        )
+        serializer = UserSerializer(participants, many=True)
+        return Response(serializer.data)
+
+
 # Просмотр списка заявок
 class ApplicationListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -484,10 +545,10 @@ class AcceptDeclineApplicationView(APIView):
         command = invite.command
 
         if request.user in command.participants.all() or request.user == command.admin:
-            if accept:
+            if accept == "true":
                 invite.status = Invite.Status.ACCEPTED
                 command.participants.add(invite.invited)
-            else:
+            elif accept == "false":
                 invite.status = Invite.Status.REJECTED
             invite.save()
             return Response({"message": "Invite successfully updated"}, status=status.HTTP_200_OK)
@@ -517,10 +578,10 @@ class AcceptDeclineInviteView(APIView):
         command = invite.command
 
         if request.user == invite.invited:
-            if accept:
+            if accept == 'true':
                 invite.status = Invite.Status.ACCEPTED
                 command.participants.add(request.user)
-            else:
+            elif accept == 'false':
                 invite.status = Invite.Status.REJECTED
             invite.save()
             return Response({"message": "Invite successfully updated"}, status=status.HTTP_200_OK)
@@ -631,10 +692,12 @@ def contest_front_detail(request, contest_id):
 
     # Данным контекстом мы будем пользоваться на фронте
     context = {
+        'user_id': request.user.id,
         'contest': contest,
         'contest_form': contest_form,
         'task_form': TaskForm(contest=contest),
         'award_form': AwardForm(contest=contest),
+        'command_form': CommandForm(contest=contest),
         'participant': False,
         "tasks": Task.objects.filter(contest=contest),
         "awards": Award.objects.filter(task__contest=contest)
@@ -648,15 +711,23 @@ def contest_front_detail(request, contest_id):
                 Q(contest_admins__id=request.user.id) | Q(owner=request.user)).exists():
             context["solutions"] = Solution.objects.filter(task__contest=contest)
             context["reviews"] = Review.objects.filter(command__contest=contest)
+
             return render(request, 'front/creator/contest_detail.html', context)
 
         elif Contest.objects.filter(id=contest_id).filter(participants__id=request.user.id).exists():
             context["participant"] = True
             commands_participant = Command.objects.filter(contest_id=contest_id).filter(
                 Q(participants__id=request.user.id) | Q(admin=request.user.id))
+            context["applications"] = Invite.objects.filter(invited=request.user, status=Invite.Status.CREATED,
+                                                            command__contest_id=contest.id)
             if commands_participant.exists():
                 context["command"] = commands_participant.first()
                 context["command_form"] = CommandForm(instance=commands_participant.first())
+                context["invites"] = Invite.objects.filter(command=commands_participant.first(),
+                                                           status=Invite.Status.CREATED,
+                                                           inviter=None)
+                context["solutions"] = Solution.objects.filter(command=commands_participant.first())
+
                 if commands_participant.first().admin == request.user:
                     context["command_admin"] = True
 

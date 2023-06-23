@@ -9,6 +9,7 @@
 </style>
 {% endblock %}
 
+
 {% block content %}
 
 <div class="row justify-content-center">
@@ -47,7 +48,7 @@
                 {% else %}
                 <button class="btn btn-danger leave-command m-3" data-command-id="{{ command.id }}">Покинуть команду</button>
                 {% endif %}
-                <button class="btn btn-secondary request-command m-3" data-command-id="{{ command.id }}">Пригласить участника (TODO)</button>
+                <button class="btn btn-secondary request-command m-3" data-command-id="{{ command.id }}">Пригласить участника</button>
                 <div class="card mb-3" id="command-edit-form" style="display: none;">
                 <div class="card-body">
                         <form id="editCommandForm" action="{% url 'api:update-command' command.id %}">
@@ -58,6 +59,56 @@
                         <button class="btn btn-secondary m-3 edit-command" data-command-id="{{ command.id }}">Редактировать</button>
                     </div>
                 </div>
+            </div>
+            <div class="container">
+            <div class="row">
+                <h3>Заявки на вступление в команду</h3>
+                {% for invite in invites %}
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title absolute">{{ invite.invited.username }}</h5>
+                            <button class="btn btn-primary m-1 accept-invite-command" data-invite-id="{{ invite.id }}">Принять</button>
+                            <button class="btn btn-secondary m-1 decline-invite-command" data-invite-id="{{ invite.id }}">Отклонить</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        </div>
+    {% elif participant %}
+        <div class="card m-3">
+            <div class="card-body">
+                <h3>Здесь могла быть ваша команда</h3>
+                <button class="btn btn-primary create-command">Создать команду</button>
+                <button class="btn btn-primary search-command">Найти команду</button>
+
+                <div class="card mb-3" id="command-create-form" style="display: none;">
+                <div class="card-body">
+                        <form id="createCommandForm" action="{% url 'api:create-command' %}">
+                            {% csrf_token %}
+                            {{ command_form.as_p }}
+                            <button class="btn btn-primary create-command-done">Создать</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card m-3">
+            <div class="card-body">
+                <h3>Приглашения в команду</h3>
+                {% for application in applications %}
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title absolute">{{ application.command.command_name }}</h5>
+                            <button class="btn btn-primary m-1 accept-application-command" data-application-id="{{ application.id }}">Принять</button>
+                            <button class="btn btn-secondary m-1 decline-application-command" data-application-id="{{ application.id }}">Отклонить</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
     {% endif %}
@@ -144,6 +195,7 @@ $('.remove-participant').click(function() {
         url: "/api/v1/command/remove/",
         type: 'POST',
         data: {
+            'contest_id': {{ contest.id }},
             'command_id': {{ command.id }},
             'user_id': userId
         },
@@ -156,17 +208,45 @@ $('.remove-participant').click(function() {
     });
     {% endif %}
 });
-
+    {% if participant %}
     $('.edit-command').click(function() {
             $('#command-edit-form').show();
         });
+
+    $('.create-command').click(function() {
+        $('#command-create-form').show();
+    });
+
 
     $('.delete-command').click(function() {
         var commandId = $(this).data('command-id');
         $.ajax({
             headers: { "X-CSRFToken": '{{ csrf_token }}' },
             url: "/api/v1/command/delete/" + commandId,
+            data: {
+                'contest_id': {{ contest.id }}
+            },
             type: 'DELETE',
+            success: function(response) {
+                location.reload();
+            },
+            error: function(error) {
+                console.log(error);
+            }
+        });
+    });
+
+    $('.create-command-done').click(function(e) {
+        e.preventDefault();
+        var form = $("#createCommandForm").serialize();
+        // Следующая строчка не работает
+        var data = form + '&contest_id=' + encodeURIComponent('{{ contest.id }}') + '&contest=' + encodeURIComponent('{{ contest.id }}') + '&admin=' + encodeURIComponent('{{ user_id }}');
+
+        $.ajax({
+            headers: { "X-CSRFToken": '{{ csrf_token }}' },
+            url: "/api/v1/command/create/",
+            type: 'POST',
+            data: data  ,
             success: function(response) {
                 location.reload();
             },
@@ -185,7 +265,7 @@ $('.remove-participant').click(function() {
             headers: { "X-CSRFToken": '{{ csrf_token }}' },
             url: "/api/v1/command/update/" + commandId + '/',
             type: 'PUT',
-            data: form.serialize(),
+            data: form.serialize() + '&contest_id='+'{{ contest.id }}',
             success: function(response) {
                 location.reload();
             },
@@ -213,6 +293,7 @@ $('.remove-participant').click(function() {
             }
         });
     });
+    {% endif %}
 
 $('#submitBtn').click(function(e) {
     console.log("{{ is_authenticated }}")
@@ -242,6 +323,251 @@ $('#submitBtn').click(function(e) {
         window.location.href = "{% url 'account_login' %}?next={{ request.path }}";
     }
 });
+
+</script>
+
+<script>
+
+
+
+// Создание сайдбара и кнопки закрыть
+
+var sidebar = $('<div>')
+    .attr('id', 'sidebar')
+    .css({
+        'position': 'fixed',
+        'top': 0,
+        'right': 0,
+        'width': '30%',
+        'height': '100%',
+        'background-color': '#f5f5f5',
+        'padding': '20px',
+        'box-shadow': '-10px 0px 20px rgba(0, 0, 0, 0.2)',
+        'z-index': 1000,
+        'display': 'none'
+    })
+    .appendTo('body');
+
+var closeButton = $('<button>')
+    .text('Закрыть')
+    .addClass('btn btn-secondary m-4 close-sidebar')
+    .appendTo(sidebar);
+
+$('body').on('click', '.close-sidebar', function() {
+    console.log("Закрыть")
+    $('#sidebar').hide();
+});
+
+$('body').on('click', '.search-command', function() {
+    console.log("Открыть сайдбар команд")
+    $('#sidebar').show();
+    $.ajax({
+        url: "/api/v1/command/search/",
+        type: 'GET',
+        data: {
+            'contest_id': {{ contest.id }},
+        },
+        success: function(response) {
+            $('#sidebar').empty().append(closeButton);
+            response.forEach(function(command) {
+                var commandDiv = $('<div>')
+                    .addClass("card mb-3")
+                    .appendTo(sidebar);
+
+                var commandBodyDiv = $('<div>')
+                    .addClass("card-body")
+                    .appendTo(commandDiv);
+
+                $('<h5>')
+                    .addClass("card-title")
+                    .text(command.command_name)
+                    .appendTo(commandBodyDiv);
+
+                var membersDiv = $('<div>')
+                    .appendTo(commandBodyDiv);
+
+                $('<h6>')
+                    .text('Участники:')
+                    .appendTo(membersDiv);
+
+                command.participants.forEach(function(user) {
+                    console.log(user);
+                    var memberDiv = $('<div>')
+                        .addClass("card m-1")
+                        .appendTo(membersDiv);
+
+                    var memberBodyDiv = $('<div>')
+                        .addClass("card-body")
+                        .appendTo(memberDiv);
+
+                    $('<h6>')
+                        .text(user)
+                        .appendTo(memberBodyDiv);
+                });
+
+                $('<button>')
+                    .addClass(`btn btn-primary apply-btn command-${command.id}`)
+                    .text('Отправить заявку')
+                    .data('command-id', command.id)
+                    .click(function() {
+                        var commandId = $(this).data('command-id');
+                        $.ajax({
+                            headers: { "X-CSRFToken": '{{ csrf_token }}' },
+                            url: "/api/v1/invite/create/",
+                            type: 'POST',
+                            data: {
+                                    'command': commandId
+                                    },
+                            success: function() {
+                                $(`.command-${commandId}`).text('Заявка отправлена')
+                                    .prop('disabled', true);
+                            },
+                            error: function(error){
+                                console.log(error);
+                            }
+                        });
+                    })
+                    .appendTo(commandBodyDiv);
+            });
+            $('#sidebar').show();
+        },
+        error: function(error){
+            console.log(error);
+        }
+    });
+});
+
+{% if command %}
+
+// Обработчик нажатия на кнопку "Пригласить участника (TODO)"
+$('.request-command').click(function() {
+    var commandId = $(this).data('command-id');
+
+    $.ajax({
+        url: "/api/v1/command/" + commandId + "/participants/",
+        type: 'GET',
+        success: function(response) {
+            $('#sidebar').empty().append(closeButton);
+            response.forEach(function(user) {
+                var userDiv = $(`<div class="card">`)
+                    .text(user.username)
+                    .appendTo(sidebar);
+
+                var inviteButton = $('<button>')
+                    .addClass(`btn btn-primary invite-btn user-${user.id}`)
+                    .text('Пригласить')
+                    .data('user-id', user.id)
+                    .click(function() {
+                        var userId = $(this).data('user-id');
+                        $.ajax({
+                            headers: { "X-CSRFToken": '{{ csrf_token }}' },
+                            url: "/api/v1/invite/send/",
+                            type: 'POST',
+                            data: {
+                                    'command': {{ command.id }},
+                                    'invited': userId
+                                    },
+                            success: function() {
+                                console.log($(`.user-${user.id}`))
+                                $(`.user-${user.id}`).text('Приглашение отправлено')
+                                    .prop('disabled', true);
+                            },
+                            error: function(error){
+                                console.log(error);
+                            }
+                        });
+                    })
+                    .appendTo(userDiv);
+            });
+            $('#sidebar').show();
+        },
+        error: function(error){
+            console.log(error);
+        }
+    });
+});
+
+$('.accept-invite-command').click(function() {
+    var inviteId = $(this).data('invite-id');
+
+
+    $.ajax({
+        headers: { "X-CSRFToken": '{{ csrf_token }}' },
+        url: "/api/v1/application/accept-decline/",
+        type: 'POST',
+        data: {
+            'invite': inviteId,
+            'accept': true
+        },
+        success: function(response) {
+            location.reload();
+        },
+        error: function(error){
+            console.log(error);
+        }
+    });
+});
+
+$('.decline-invite-command').click(function() {
+    var inviteId = $(this).data('invite-id');
+    $.ajax({
+        headers: { "X-CSRFToken": '{{ csrf_token }}' },
+        url: "/api/v1/application/accept-decline/",
+        type: 'POST',
+        data: {
+            'invite': inviteId,
+            'accept': false
+        },
+        success: function(response) {
+            location.reload();
+        },
+        error: function(error){
+            console.log(error);
+        }
+    });
+});
+
+{% endif %}
+
+$('.accept-application-command').click(function() {
+    var applicationId = $(this).data('application-id');
+
+    $.ajax({
+        headers: { "X-CSRFToken": '{{ csrf_token }}' },
+        url: "/api/v1/invite/accept-decline/",
+        type: 'POST',
+        data: {
+            'invite': applicationId,
+            'accept': true
+        },
+        success: function(response) {
+            location.reload();
+        },
+        error: function(error){
+            console.log(error);
+        }
+    });
+});
+
+$('.decline-application-command').click(function() {
+    var applicationId = $(this).data('application-id');
+    $.ajax({
+        headers: { "X-CSRFToken": '{{ csrf_token }}' },
+        url: "/api/v1/invite/accept-decline/",
+        type: 'POST',
+        data: {
+            'invite': applicationId,
+            'accept': false
+        },
+        success: function(response) {
+            location.reload();
+        },
+        error: function(error){
+            console.log(error);
+        }
+    });
+});
+
 
 </script>
 
